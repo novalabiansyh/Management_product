@@ -14,9 +14,20 @@
         {
             $this->checkLogin();
 
+            $categoryFilter = $this->request->getPost('categoryFilter') ?? '';
+
+            $db = \Config\Database::connect();
+            $builder = $db->table('products p')
+                        ->select('p.id, p.name, p.category_id, p.price, p.stock, c.name as category')
+                        ->join('categories c', 'c.id = p.category_id', 'left');
+
             if (!session()->get('isLogin')) {
                 log_message('error', 'User belum login');
                 return $this->response->setJSON(['error' => 'Not logged in']);
+            }
+
+            if (!empty($categoryFilter)) {
+                $builder->where('p.category_id', $categoryFilter);
             }
             
             try {
@@ -25,7 +36,7 @@
                 $builder = $model->datatable();
                 
                 return DataTable::of($builder)
-                    ->addNumbering()
+                    ->addNumbering('no', false)
                     ->add('aksi', function ($row) {
                         return '
                             <button class="btn btn-warning btn-sm" onclick="editForm(\'' . $row->id . '\')">Edit</button>

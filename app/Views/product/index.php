@@ -17,6 +17,18 @@
             Tambah Produk
         </button>
     </div>
+    <div class="col-md-4">
+        <select id="categoryFilter" class="form-select">
+            <option value="">Semua Kategori</option>
+                <?php 
+                    $db = \Config\Database::connect();
+                    $categories = $db->table('categories')->get()->getResultArray();
+                    foreach ($categories as $cat): ?>
+            <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <br>
 
     <table id="tblProduct" class="table table-bordered table-striped w-100">
         <thead>
@@ -54,9 +66,10 @@
 <script>
 let tbl;
 $(function () {
-    $('#tblProduct').DataTable({
+    tbl = $('#tblProduct').DataTable({
         processing: true,
         serverSide: true,
+        order: [[1, 'asc']],
         ajax: {
             url: "<?= site_url('products/datatable') ?>",
             type: "POST",
@@ -66,16 +79,18 @@ $(function () {
         },
         columns: [
             { data: 'no', orderable: false },
-            { data: 'name' },
-            { data: 'category' },
-            { 
+            { data: 'name', name: 'p.name' },
+            { data: 'category', name: 'c.name' },
+            {
                 data: 'price',
+                name: 'p.price',
                 render: function(data) {
                     return 'Rp ' + parseInt(data).toLocaleString('id-ID');
                 }
             },
-            { 
+            {
                 data: 'stock',
+                name: 'p.stock',
                 render: function(data) {
                     return data;
                 }
@@ -101,7 +116,7 @@ function openForm(url) {
                 } else {
                     data = res;
                 }
-                
+
                 $('#modalBody').html(data.view);
                 $('#modalForm').modal('show');
             } catch (e) {
@@ -115,6 +130,50 @@ function openForm(url) {
         }
     });
 }
+
+function editForm(id) {
+    openForm('<?= site_url('products/form/') ?>' + id);
+}
+
+function deleteData(id) {
+    if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
+        $.ajax({
+            url: '<?= site_url('products/delete/') ?>' + id,
+            type: 'POST',
+            data: {
+                <?= csrf_token() ?>: '<?= csrf_hash() ?>'
+            },
+            success: function(res) {
+                try {
+                    let data;
+                    if (typeof res === 'string') {
+                        data = JSON.parse(res);
+                    } else {
+                        data = res;
+                    }
+                    if (data.status === 'success') {
+                        alert('Produk berhasil dihapus');
+                        tbl.ajax.reload();
+                    } else {
+                        alert('Gagal menghapus produk');
+                    }
+                } catch (e) {
+                    console.error('Error parsing response:', e);
+                    alert('Terjadi kesalahan saat menghapus.');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error:', xhr.responseText);
+                alert('Gagal menghapus produk. Error: ' + error);
+            }
+        });
+    }
+}
+
+$('#categoryFilter').on('change', function() {
+        currentCategory = $(this).val();
+        tbl.ajax.reload();
+    });
 
 </script>
 

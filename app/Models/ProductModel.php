@@ -10,7 +10,7 @@
 
         public function datatable(){
             return $this->db->table('products p')
-                            ->select('p.*, c.name as category')
+                            ->select('p.id as id, p.name as name, p.category_id as category_id, p.price as price, p.stock as stock, c.name as category')
                             ->join('categories c', 'p.category_id = c.id');
         }
 

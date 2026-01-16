@@ -16,6 +16,6 @@ $routes->post('products/datatable', 'Product::datatable');
 $routes->get('products/form', 'Product::forms');
 $routes->get('products/form/(:any)', 'Product::forms/$1');
 $routes->post('products/add', 'Product::add');
-$routes->post('products/edit/(:any)', 'Product::update/$1');
+$routes->post('products/update/(:any)', 'Product::update/$1');
 $routes->post('products/delete/(:any)', 'Product::delete/$1');
 
