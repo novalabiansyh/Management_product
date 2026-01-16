@@ -8,12 +8,20 @@
         protected $primaryKey = 'id';
         protected $allowedFields = ['name', 'category_id', 'price', 'stock'];
 
+        
         public function datatable(){
             return $this->db->table('products p')
-                            ->select('p.id as id, p.name as name, p.category_id as category_id, p.price as price, p.stock as stock, c.name as category')
-                            ->join('categories c', 'p.category_id = c.id');
+            ->select('p.id as id, p.name as name, p.category_id as category_id, p.price as price, p.stock as stock, c.name as category')
+            ->join('categories c', 'p.category_id = c.id');
         }
 
+        public function searchable(){
+                return [
+                    "p.name",
+                    "c.name",
+                ];
+            }
+            
         public function getOne($id){
             return $this->find($id);
         }

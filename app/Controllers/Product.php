@@ -14,40 +14,49 @@
         {
             $this->checkLogin();
 
-            $categoryFilter = $this->request->getPost('categoryFilter') ?? '';
+            $categoryFilter = $this->request->getPost('categoryFilter');
 
-            $db = \Config\Database::connect();
-            $builder = $db->table('products p')
-                        ->select('p.id, p.name, p.category_id, p.price, p.stock, c.name as category')
-                        ->join('categories c', 'c.id = p.category_id', 'left');
-
-            if (!session()->get('isLogin')) {
-                log_message('error', 'User belum login');
-                return $this->response->setJSON(['error' => 'Not logged in']);
-            }
-
-            if (!empty($categoryFilter)) {
-                $builder->where('p.category_id', $categoryFilter);
-            }
-            
             try {
                 $model = new ProductModel();
 
                 $builder = $model->datatable();
-                
+
+                if (!empty($categoryFilter)) {
+                    $builder->where('p.category_id', $categoryFilter);
+                }
+
                 return DataTable::of($builder)
+                    ->setSearchableColumns(false)
+                    ->filter(function ($builder, $request) use ($model) {
+
+                        $search = strtolower($request->search['value'] ?? '');
+
+                        if (!empty($search)) {
+                            $builder->groupStart();
+                            foreach ($model->searchable() as $col) {
+                                $builder->orWhere(
+                                    "LOWER(CAST($col AS TEXT)) LIKE '%{$search}%'",
+                                    null,
+                                    false
+                                );
+                            }
+                            $builder->groupEnd();
+                        }
+                    })
                     ->addNumbering('no', false)
                     ->add('aksi', function ($row) {
                         return '
-                            <button class="btn btn-warning btn-sm" onclick="editForm(\'' . $row->id . '\')">Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteData(\'' . $row->id . '\')">Hapus</button>
+                            <button class="btn btn-warning btn-sm"
+                                onclick="editForm(\'' . $row->id . '\')">Edit</button>
+                            <button class="btn btn-danger btn-sm"
+                                onclick="deleteData(\'' . $row->id . '\')">Hapus</button>
                         ';
                     })
                     ->toJson(true);
-                    
+
             } catch (\Exception $e) {
+
                 log_message('error', 'DataTable Error: ' . $e->getMessage());
-                log_message('error', 'Stack trace: ' . $e->getTraceAsString());
 
                 return $this->response->setJSON([
                     'draw' => $this->request->getPost('draw') ?? 0,

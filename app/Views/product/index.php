@@ -74,11 +74,12 @@ $(function () {
             url: "<?= site_url('products/datatable') ?>",
             type: "POST",
             data: function(d) {
+                d.categoryFilter = $('#categoryFilter').val();
                 d.<?= csrf_token() ?> = '<?= csrf_hash() ?>';
             }
         },
         columns: [
-            { data: 'no', orderable: false },
+            { data: 'no', orderable: false, searchable: false },
             { data: 'name', name: 'p.name' },
             { data: 'category', name: 'c.name' },
             {
@@ -86,16 +87,16 @@ $(function () {
                 name: 'p.price',
                 render: function(data) {
                     return 'Rp ' + parseInt(data).toLocaleString('id-ID');
-                }
+                }, searchable: false
             },
             {
                 data: 'stock',
                 name: 'p.stock',
                 render: function(data) {
                     return data;
-                }
+                }, searchable: false
             },
-            { data: 'aksi', orderable: false }
+            { data: 'aksi', orderable: false, searchable: false }
         ],
         error: function(xhr, error, thrown) {
             console.error('DataTables error:', xhr.responseText);
