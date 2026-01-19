@@ -10,12 +10,18 @@
 <body>
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between mb-3">
-        <h5>Data Produk</h5>
-        <button class="btn btn-primary"
-            onclick="openForm('<?= site_url('products/form') ?>')">
-            Tambah Produk
-        </button>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Data Produk</h5>
+        <div>
+            <button class="btn btn-primary btn-sm me-2"
+                onclick="openForm('<?= site_url('products/form') ?>')">
+                Tambah Produk
+            </button>
+
+            <button onclick="logout()" class="btn btn-danger btn-sm">
+                Logout
+            </button>
+        </div>
     </div>
     <div class="col-md-4">
         <select id="categoryFilter" class="form-select">
@@ -175,6 +181,13 @@ $('#categoryFilter').on('change', function() {
         currentCategory = $(this).val();
         tbl.ajax.reload();
     });
+
+function logout() {
+    if (confirm('Yakin ingin logout?')) {
+        alert('Logout berhasil');
+        window.location.href = "<?= site_url('logout') ?>";
+    }
+}
 
 </script>
 

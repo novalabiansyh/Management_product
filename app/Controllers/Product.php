@@ -6,7 +6,9 @@
 
     class Product extends BaseController{
         public function index(){
-            $this->checkLogin();
+            if ($redirect = $this->checkLogin()){
+                return $redirect;
+            }
             return view('product/index');
         }
 

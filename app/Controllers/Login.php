@@ -35,7 +35,7 @@
 
         public function logout(){
             session()->destroy();
-            return redirect()->to('/login');
+            return redirect()->to('/hal_login')->with('success', 'berhasil logout');
         }
     }
 ?>

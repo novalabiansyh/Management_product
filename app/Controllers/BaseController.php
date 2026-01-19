@@ -27,7 +27,7 @@ abstract class BaseController extends Controller
 
     protected function checkLogin(){
         if (!session()->get('isLogin')) {
-            return redirect()->to('/login')->send();
+            return redirect()->to('/hal_login');
             exit;
     }
     }
