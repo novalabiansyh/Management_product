@@ -18,4 +18,6 @@ $routes->get('products/form/(:any)', 'Product::forms/$1');
 $routes->post('products/add', 'Product::add');
 $routes->post('products/update/(:any)', 'Product::update/$1');
 $routes->post('products/delete/(:any)', 'Product::delete/$1');
+$routes->post('products/categoryList', 'Product::categoryList');
+
 

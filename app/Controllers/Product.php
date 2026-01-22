@@ -2,6 +2,7 @@
     namespace App\Controllers;
 
     use App\Models\ProductModel;
+    use App\Models\CategoryModel;
     use Hermawan\DataTables\DataTable;
 
     class Product extends BaseController{
@@ -9,7 +10,12 @@
             if ($redirect = $this->checkLogin()){
                 return $redirect;
             }
-            return view('product/index');
+
+            $categoryModel = new CategoryModel();
+
+            return view('product/index', [
+                'categories' => $categoryModel->getForSelect()
+            ]);
         }
 
         public function datatable()
@@ -21,29 +27,15 @@
             try {
                 $model = new ProductModel();
 
-                $builder = $model->datatable();
-
-                if (!empty($categoryFilter)) {
-                    $builder->where('p.category_id', $categoryFilter);
-                }
+                $builder = $model->datatable($categoryFilter);
 
                 return DataTable::of($builder)
                     ->setSearchableColumns(false)
                     ->filter(function ($builder, $request) use ($model) {
 
-                        $search = strtolower($request->search['value'] ?? '');
+                        $search = $request->search['value'] ?? '';
 
-                        if (!empty($search)) {
-                            $builder->groupStart();
-                            foreach ($model->searchable() as $col) {
-                                $builder->orWhere(
-                                    "LOWER(CAST($col AS TEXT)) LIKE '%{$search}%'",
-                                    null,
-                                    false
-                                );
-                            }
-                            $builder->groupEnd();
-                        }
+                        $model->applySearch($builder, $search);
                     })
                     ->addNumbering('no', false)
                     ->add('aksi', function ($row) {
@@ -72,9 +64,10 @@
 
         public function add(){
             $this->checkLogin();
-            $db = \Config\Database::connect();
 
+            $db = \Config\Database::connect();
             $model = new ProductModel();
+
             $name = $this->request->getPost('name');
             $category = $this->request->getPost('category_id');
             $price = $this->request->getPost('price');
@@ -90,7 +83,7 @@
             if (empty($data['name']) || empty($data['category_id']) || empty($data['price']) || empty($data['stock'])) {
                 return $this->response->setJSON([
                     'status' => 'error',
-                    'message' => 'Nama & kategori wajib diisi'
+                    'message' => 'data harus diisi!'
                 ]);
             }
 
@@ -100,17 +93,17 @@
 
             if ($db->transStatus() === false){
                 $db->transRollback();
-                return $this->response->setJSON(['status' => 'error']);
+                return $this->response->setJSON([ 'status' => 'error' ]);
             } else {
                 $db->transCommit();
-                return $this->response->setJSON(['status' => 'success']);
+                return $this->response->setJSON([ 'status' => 'success' ]);
             }
         }
 
         public function update($id){
             $this->checkLogin();
-            $db = \Config\Database::connect();
 
+            $db = \Config\Database::connect();
             $model = new ProductModel();
 
             $name = $this->request->getPost('name');
@@ -125,28 +118,29 @@
                 'stock' => $stock
             ];
 
+            if (empty($data['name']) || empty($data['category_id']) || empty($data['price']) || empty($data['stock'])){
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'data harus diisi!'
+                ]);
+            }
+
             $db->transBegin();
 
             $model->updateData($id, $data);
 
-            if($db->transStatus() === false){
+            if ($db->transStatus() === false){
                 $db->transRollback();
-                return $this->response->setJSON([
-                    'status' => 'error'
-                ]);
+                return $this->response->setJSON([ 'status' => 'error' ]);
             } else {
                 $db->transCommit();
-                return $this->response->setJSON([
-                    'status' => 'success'
-                ]);
+                return $this->response->setJSON([ 'status' => 'success' ]);
             }
         }
 
         public function delete($id){
             $this->checkLogin();
-
-             $db = \Config\Database::connect();
-
+            $db = \Config\Database::connect();
             $model = new ProductModel();
 
             $db->transBegin();
@@ -155,10 +149,10 @@
 
             if ($db->transStatus() === false){
                 $db->transRollback();
-                return $this->response->setJSON(['status' => 'error']);
+                return $this->response->setJSON([ 'status' => 'error' ]);
             } else {
                 $db->transCommit();
-                return $this->response->setJSON(['status' => 'success']);
+                return $this->response->setJSON([ 'status' => 'success' ]);
             }
         }
 
@@ -167,6 +161,7 @@
             $this->checkLogin();
 
             $model = new ProductModel();
+            $categoryModel = new CategoryModel();
             
             $form_type = empty($id) ? 'add' : 'edit';
             $row = [];
@@ -174,7 +169,7 @@
 
             if ($id != '') {
                 $productid = $id;
-                $row = $model->getOne($id);
+                $row = $model->getOneWithCategory($id);
 
                 if (!$row) {
                     return $this->response->setJSON([
@@ -183,21 +178,39 @@
                 }
             }
 
-            $db = \Config\Database::connect();
-            $categories = $db->table('categories')->get()->getResultArray();
-
             $view = view('product/form', [
                 'form_type' => $form_type,
                 'row' => $row,
-                'categories' => $categories,
+                'categories' => $categoryModel->getForSelect(),
                 'productid' => $productid
             ]);
 
             return $this->response->setJSON([
                 'view' => $view,
+                'row' => $row,
                 'form_type' => $form_type,
                 'csrfToken' => csrf_hash()
             ]);
+        }
+
+        public function categoryList(){
+            $this->checkLogin();
+
+            $search = $this->request->getPost('search');
+            $categoryModel = new CategoryModel();
+
+            if (!empty($search)){
+                $items = $categoryModel->searchCategory($search);
+            } else {
+                $items = $categoryModel->findAll(10);
+            }
+
+            $result = array_map(fn($c) => [
+                'id' => $c['id'],
+                'text' => $c['name']
+            ], $items);
+
+            return $this->response->setJSON([ 'items' => $result ]);
         }
 
 

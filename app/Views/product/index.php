@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Data Produk</title>
-
+    <link rel="stylesheet" href="<?= base_url('assets/css/select2.min.css') ?>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
@@ -27,8 +27,6 @@
         <select id="categoryFilter" class="form-select">
             <option value="">Semua Kategori</option>
                 <?php 
-                    $db = \Config\Database::connect();
-                    $categories = $db->table('categories')->get()->getResultArray();
                     foreach ($categories as $cat): ?>
             <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
             <?php endforeach; ?>
@@ -39,12 +37,12 @@
     <table id="tblProduct" class="table table-bordered table-striped w-100">
         <thead>
             <tr>
-                <th width="5%">No</th>
+                <th width="10px">No</th>
                 <th>Nama</th>
                 <th>Kategori</th>
                 <th>Harga</th>
                 <th>Stok</th>
-                <th width="15%">Aksi</th>
+                <th width="125px">Aksi</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -65,6 +63,7 @@
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="<?= base_url('assets/js/select2.min.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
@@ -75,6 +74,9 @@ $(function () {
     tbl = $('#tblProduct').DataTable({
         processing: true,
         serverSide: true,
+        language: {
+            searchPlaceholder: 'cari nama produk...'
+        },
         order: [[1, 'asc']],
         ajax: {
             url: "<?= site_url('products/datatable') ?>",
@@ -125,7 +127,12 @@ function openForm(url) {
                 }
 
                 $('#modalBody').html(data.view);
-                $('#modalForm').modal('show');
+                $('#modalForm')
+                .off('shown.bs.modal')
+                .on('shown.bs.modal', function () {
+                initCategorySelect2(data);
+                })
+                .modal('show');
             } catch (e) {
                 console.error('Error parsing response:', e);
                 alert('Terjadi kesalahan pada form.');
@@ -182,13 +189,45 @@ $('#categoryFilter').on('change', function() {
         tbl.ajax.reload();
     });
 
+function initCategorySelect2(data) {
+
+  $('#category_id').select2({
+    dropdownParent: $('#modalForm'),
+    placeholder: '-- pilih kategori --',
+    minimumResultsForSearch: 0,
+    ajax: {
+      url: '<?= site_url('products/categoryList') ?>',
+      type: 'POST',
+      dataType: 'json',
+      delay: 250,
+      data: params => ({
+        search: params.term,
+        <?= csrf_token() ?>: '<?= csrf_hash() ?>'
+      }),
+      processResults: res => ({
+        results: res.items
+      })
+    }
+  });
+
+  // mode edit
+  if (data.form_type === 'edit') {
+    let opt = new Option(
+      data.row.category_name,
+      data.row.category_id,
+      true,
+      true
+    );
+    $('#category_id').append(opt).trigger('change');
+  }
+}
+
 function logout() {
     if (confirm('Yakin ingin logout?')) {
         alert('Logout berhasil');
         window.location.href = "<?= site_url('logout') ?>";
     }
 }
-
 </script>
 
 </body>

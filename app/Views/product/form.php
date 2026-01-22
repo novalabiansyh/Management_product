@@ -12,15 +12,7 @@
 
 <div class="mb-2">
     <label class="form-label">Kategori</label>
-    <select name="category_id" class="form-control" required>
-        <option value="">-- Pilih --</option>
-        <?php foreach ($categories as $cat): ?>
-            <option value="<?= $cat['id'] ?>"
-                <?= (!empty($row) && $row['category_id'] == $cat['id']) ? 'selected' : '' ?>>
-                <?= $cat['name'] ?>
-            </option>
-        <?php endforeach ?>
-    </select>
+    <select name="category_id" id="category_id" class="form-control" required></select>
 </div>
 
 <div class="mb-2">
