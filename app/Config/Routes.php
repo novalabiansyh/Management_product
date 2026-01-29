@@ -5,9 +5,8 @@ use CodeIgniter\Router\RouteCollection;
 /**
  * @var RouteCollection $routes
  */
-$routes->get('/', 'Home::index');
+$routes->get('/', 'Login::login');
 
-$routes->get('hal_login', 'Login::login');
 $routes->post('login', 'Login::processLogin');
 $routes->get('logout', 'Login::logout');
 
@@ -19,5 +18,4 @@ $routes->post('products/add', 'Product::add');
 $routes->post('products/update/(:any)', 'Product::update/$1');
 $routes->post('products/delete/(:any)', 'Product::delete/$1');
 $routes->post('products/categoryList', 'Product::categoryList');
-
-
+$routes->get('products/exportPdf', 'Product::exportPdf');

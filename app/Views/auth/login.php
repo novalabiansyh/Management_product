@@ -10,7 +10,7 @@
     <div class="row justify-content-center">
         <div class="col-md-4">
             <div class="card p-4">
-                <h4 class="text-center mb-3">Login Admin</h4>
+                <h4 class="text-center mb-3">Login</h4>
 
                 <?php if (session()->getFlashdata('error')): ?>
                     <div class="alert alert-danger">

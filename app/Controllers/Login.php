@@ -14,7 +14,7 @@
             $username = $this->request->getPost('username');
             $password = $this->request->getPost('password');
 
-            $user = $userModel->where('username', $username)->first();
+            $user = $userModel->getData($username);
 
             if (!$user){
                 return redirect()->back()->with('error', 'username tidak ditemukan');
@@ -35,7 +35,7 @@
 
         public function logout(){
             session()->destroy();
-            return redirect()->to('/hal_login')->with('success', 'berhasil logout');
+            return redirect()->to('/')->with('success', 'berhasil logout');
         }
     }
 ?>

@@ -20,5 +20,15 @@
                         ->orderBy('name', 'ASC')
                         ->findAll($limit);
         }
+
+        public function findData(){
+            return $this->findAll();
+        }
+
+        public function getOneCategory($categoryFilter){
+            return $this->select('name')
+                        ->where('id', $categoryFilter)
+                        ->first();
+        }
     }
 ?>

@@ -13,6 +13,9 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">Data Produk</h5>
         <div>
+            <a href="<?= site_url('products/exportPdf') ?>?category=" id="btnExportPdf" class="btn btn-success btn-sm me-2" target="_blank">
+            Export PDF
+            </a>
             <button class="btn btn-primary btn-sm me-2"
                 onclick="openForm('<?= site_url('products/form') ?>')">
                 Tambah Produk
@@ -69,6 +72,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
+const exportPdfBaseUrl = "<?= site_url('products/exportPdf') ?>";
 let tbl;
 $(function () {
     tbl = $('#tblProduct').DataTable({
@@ -79,7 +83,7 @@ $(function () {
         },
         order: [[1, 'asc']],
         ajax: {
-            url: "<?= site_url('products/datatable') ?>",
+            url: "<?= base_url('products/datatable') ?>",
             type: "POST",
             data: function(d) {
                 d.categoryFilter = $('#categoryFilter').val();
@@ -100,9 +104,7 @@ $(function () {
             {
                 data: 'stock',
                 name: 'p.stock',
-                render: function(data) {
-                    return data;
-                }, searchable: false
+                searchable: false
             },
             { data: 'aksi', orderable: false, searchable: false }
         ],
@@ -185,9 +187,19 @@ function deleteData(id) {
 }
 
 $('#categoryFilter').on('change', function() {
-        currentCategory = $(this).val();
-        tbl.ajax.reload();
-    });
+    let categoryId = $(this).val(); //this itu elemen yg memicu event change
+
+    tbl.ajax.reload();
+
+    // update link export pdf
+    let url = exportPdfBaseUrl;
+
+    if (categoryId) {
+        url += '?category=' + categoryId;
+    }
+
+    $('#btnExportPdf').attr('href', url);
+});
 
 function initCategorySelect2(data) {
 
@@ -210,13 +222,13 @@ function initCategorySelect2(data) {
     }
   });
 
-  // mode edit
+  //kalau form edit
   if (data.form_type === 'edit') {
     let opt = new Option(
-      data.row.category_name,
-      data.row.category_id,
-      true,
-      true
+      data.row.category_name, //text
+      data.row.category_id, //value
+      true, //default
+      true //selected
     );
     $('#category_id').append(opt).trigger('change');
   }
@@ -227,7 +239,7 @@ function logout() {
         alert('Logout berhasil');
         window.location.href = "<?= site_url('logout') ?>";
     }
-}
+}   
 </script>
 
 </body>

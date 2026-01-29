@@ -9,13 +9,13 @@
         protected $allowedFields = ['name', 'category_id', 'price', 'stock'];
 
         
-        public function datatable($categoryFilter = null){
+        public function datatable($field = null, $value = null){
             $builder = $this->db->table('products p')
                                 ->select('p.id as id, p.name as name, p.category_id as category_id, p.price as price, p.stock as stock, c.name as category')
                                 ->join('categories c', 'p.category_id = c.id');
 
-            if (!empty($categoryFilter)) {
-                    $builder->where('p.category_id', $categoryFilter);
+            if ($field !== null && $value !== null) {
+                    $builder->where($field, $value);
                 }
                 return $builder;
         }
@@ -39,16 +39,11 @@
                     "c.name",
                 ];
             }
-            
-        public function getOne($id){
-            return $this->find($id);
-        }
 
         public function getOneWithCategory($id){
             return $this->select('products.*, categories.name as category_name')
                         ->join('categories', 'categories.id = products.category_id')
-                        ->where('products.id', $id)
-                        ->first();
+                        ->find($id);
         }
 
         public function addData(array $data){
