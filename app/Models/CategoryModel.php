@@ -8,21 +8,40 @@
         protected $primaryKey = 'id';
         protected $allowedFields = ['name'];
 
+        public function datatable(){
+            return $this->select('id, name');
+        }
+
+        public function applySearch($builder, $search){
+            if (empty($search)){
+                return $builder;
+            }
+            
+            $builder->groupStart();
+            foreach($this->allowedFields as $col){
+                $builder->like($col, $search, 'both', null, true);
+            }
+            $builder->groupEnd();
+            return $builder;
+        }
+
         public function getForSelect(){
             return $this->select('id, name')
                         ->orderBy('name', 'ASC')
                         ->findAll();
         }
 
-        public function searchCategory($search, $limit = 10){
-            return $this->select('id, name')
-                        ->like('name', $search, 'both', null, true)
-                        ->orderBy('name', 'ASC')
-                        ->findAll($limit);
-        }
-
-        public function findData(){
-            return $this->findAll();
+        public function findData($search = null){
+            $builder = $this->select('id, name');
+            
+            if (!empty($search)){
+                return $builder->like('name', $search, 'both', null, true)
+                                ->orderBy('name', 'ASC')
+                                ->findAll();
+            }
+            
+            return $builder->orderBy('name', 'ASC')
+                            ->findAll();
         }
 
         public function getOneCategory($categoryFilter){

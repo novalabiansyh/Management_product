@@ -10,6 +10,7 @@ $routes->get('/', 'Login::login');
 $routes->post('login', 'Login::processLogin');
 $routes->get('logout', 'Login::logout');
 
+//route untuk products
 $routes->get('products', 'Product::index');
 $routes->post('products/datatable', 'Product::datatable');
 $routes->get('products/form', 'Product::forms');
@@ -19,3 +20,13 @@ $routes->post('products/update/(:any)', 'Product::update/$1');
 $routes->post('products/delete/(:any)', 'Product::delete/$1');
 $routes->post('products/categoryList', 'Product::categoryList');
 $routes->get('products/exportPdf', 'Product::exportPdf');
+
+//route untuk category
+$routes->get('category', 'Category::index');
+$routes->post('category/datatable', 'Category::datatable');
+$routes->get('category/form', 'Category::forms');
+$routes->get('category/form/(:any)', 'Category::forms/$1');
+$routes->post('category/add', 'Category::add');
+$routes->post('category/update/(:any)', 'Category::update/$1');
+$routes->post('category/delete/(:any)', 'Category::delete/$1');
+$routes->get('category/exportPdf', 'Product::exportPdf');

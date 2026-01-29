@@ -1,28 +1,21 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Data Produk</title>
-    <link rel="stylesheet" href="<?= base_url('assets/css/select2.min.css') ?>">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-</head>
-<body>
+<?= $this->extend('layout/main') ?>
+<?= $this->section('css') ?>
+<link rel="stylesheet" href="<?= base_url('assets/css/select2.min.css') ?>">
+<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<?= $this->endSection() ?>
+
+<?= $this->section('content') ?>
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">Data Produk</h5>
         <div>
             <a href="<?= site_url('products/exportPdf') ?>?category=" id="btnExportPdf" class="btn btn-success btn-sm me-2" target="_blank">
-            Export PDF
+                Export PDF
             </a>
             <button class="btn btn-primary btn-sm me-2"
                 onclick="openForm('<?= site_url('products/form') ?>')">
                 Tambah Produk
-            </button>
-
-            <button onclick="logout()" class="btn btn-danger btn-sm">
-                Logout
             </button>
         </div>
     </div>
@@ -64,7 +57,9 @@
         </div>
     </div>
 </div>
+<?= $this->endSection(); ?>
 
+<?= $this->section('js'); ?>
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="<?= base_url('assets/js/select2.min.js') ?>"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -233,14 +228,5 @@ function initCategorySelect2(data) {
     $('#category_id').append(opt).trigger('change');
   }
 }
-
-function logout() {
-    if (confirm('Yakin ingin logout?')) {
-        alert('Logout berhasil');
-        window.location.href = "<?= site_url('logout') ?>";
-    }
-}   
 </script>
-
-</body>
-</html>
+<?= $this->endSection() ?>

@@ -1,0 +1,98 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background-color: #f8f9fa;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* =========================
+   HEADER
+========================= */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background-color: #4d6991;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    z-index: 1000;
+}
+
+.header .title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.header .btn-logout {
+    background: #cd3342;
+    border: none;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.header .btn-logout:hover{
+    background-color: #b52c3a;
+}
+
+/* =========================
+   SIDEBAR
+========================= */
+.sidebar {
+    position: fixed;
+    top: 56px; /* setinggi header */
+    left: 0;
+    width: 220px;
+    height: calc(100vh - 56px);
+    background-color: #212529;
+    padding-top: 1rem;
+    z-index: 999;
+}
+
+.sidebar a {
+    display: block;
+    padding: 10px 16px;
+    color: #adb5bd;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background-color: #343a40;
+    color: #fff;
+}
+
+/* =========================
+   CONTENT
+========================= */
+.content {
+    margin-top: 56px;    /* supaya tidak ketutup header */
+    margin-left: 220px;  /* supaya tidak ketutup sidebar */
+    padding: 20px;
+    min-height: calc(100vh - 56px);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+
+    .content {
+        margin-left: 0;
+    }
+}
