@@ -20,6 +20,7 @@ $routes->post('products/update/(:any)', 'Product::update/$1');
 $routes->post('products/delete/(:any)', 'Product::delete/$1');
 $routes->post('products/categoryList', 'Product::categoryList');
 $routes->get('products/exportPdf', 'Product::exportPdf');
+$routes->get('products/exportExcel', 'Product::exportExcel');
 
 //route untuk category
 $routes->get('category', 'Category::index');

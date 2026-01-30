@@ -5,6 +5,9 @@
     use App\Models\CategoryModel;
     use Hermawan\DataTables\DataTable;
     use FPDF;
+use PhpOffice\PhpSpreadsheet\Reader\Xls;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+    use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
     class Product extends BaseController{
         public function index(){
@@ -218,6 +221,9 @@
         }
 
         public function exportPdf(){
+            if ($redirect = $this->checkLogin()){
+                return $redirect;
+            }
             $categoryFilter = $this->request->getGet('category'); //ambil filter kategory(dari url) kalo ada
 
             $model = new ProductModel();
@@ -287,28 +293,29 @@
             $pdf->Ln(5);
 
             $pdf->SetFont('Arial', '', 10);
-            $pdf->Cell(35, 6, 'No Keluhan', 0, 0);
-            $pdf->Cell(2, 6, ':', 0, 0);
-            $pdf->Cell(0, 6, '032/MKT-EMIINDO/I/2026', 0, 1);
-
             $pdf->Cell(35, 6, 'Nama Customer', 0, 0);
             $pdf->Cell(2, 6, ':', 0, 0);
-            $pdf->Cell(0, 6, 'PUSKESMAS KEBAYORAN LAMA', 0, 1);
+            $pdf->Cell(0, 6, 'Noval Abiansyah', 0, 1);
 
-            $pdf->Cell(35, 6, 'Nama Pemohon', 0, 0);
+            $pdf->Cell(35, 6, 'Email', 0, 0);
             $pdf->Cell(2, 6, ':', 0, 0);
-            $pdf->Cell(0, 6, 'Fanny', 0, 1);
+            $pdf->Cell(0, 6, 'nopal@gmail.com', 0, 1);
 
             $pdf->Cell(35, 6, 'Telp', 0, 0);
             $pdf->Cell(2, 6, ':', 0, 0);
-            $pdf->Cell(0, 6, "089531410074", 0, 1);
+            $pdf->Cell(0, 6, '089531410074', 0, 1);
 
             $pdf->Cell(35, 6, 'Alamat', 0, 0);
             $pdf->Cell(2, 6, ':', 0, 0);
             $pdf->Cell(0, 6, 'Jl. Ciputat Raya, Kebayoran Lama, Jakarta Selatan', 0, 1);
+
+            $pdf->Cell(35, 6, 'Kategori', 0, 0);
+            $pdf->Cell(2, 6, ':', 0, 0);
+            $pdf->Cell(0, 6, "$category", 0, 1);
+
             $pdf->Ln(5);
 
-            $pdf->MultiCell(188, 5, "Deskripsi: \nLampu indikator timbangan kedap kedip sudah di ganti baterai baru", 1);
+            $pdf->MultiCell(188, 5, "Deskripsi: \nMenampilkan Data Produk dengan kategori '$category'", 1);
             $pdf->MultiCell(188, 5, "Hasil Laporan: \nNew Data", 1);
             $pdf->Ln(5);
 
@@ -347,5 +354,62 @@
                 ->setHeader('Content-Disposition', 'inline; filename="produk.pdf"')
                 ->setBody($pdf->Output('S'));
         }
+
+            public function exportExcel(){
+                if ($redirect = $this->checkLogin()){
+                    return $redirect;
+                }
+
+                $category_id = $this->request->getGet('category');
+                $model = new ProductModel();
+
+                $spreadsheet = new Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+
+                $sheet->setCellValue('A1', 'No');
+                $sheet->setCellValue('B1', 'Nama Produk');
+                $sheet->setCellValue('C1', 'Kategori');
+                $sheet->setCellValue('D1', 'Harga');
+                $sheet->setCellValue('E1', 'Stok');
+
+                $lastId = 0;
+                $limit = 5;
+                $rowExcel = 2;
+                $no = 1;
+                
+
+                do {
+                    if (!empty($category_id)){
+                        $rows = $model->getData($lastId, $limit, $category_id)->get()->getResultArray();
+                    } else {
+                        $rows = $model->getData($lastId, $limit)->get()->getResultArray();
+                    }
+
+                    foreach ($rows as $row){
+                        $sheet->setCellValue('A' . $rowExcel, $no++);
+                        $sheet->setCellValue('B' . $rowExcel, $row['name']);
+                        $sheet->setCellValue('C' . $rowExcel, $row['category']);
+                        $sheet->setCellValue('D' . $rowExcel, $row['price']);
+                        $sheet->setCellValue('E' . $rowExcel, $row['stock']);
+
+                        $rowExcel++;
+                        $lastId = $row['id'];
+                    }            
+                    // if (!empty($rows)){
+                    //     //update lastID
+                    //     $lastId = end($rows)['id'];
+                    // }
+                } while(!empty($rows));
+
+                $fileName = 'product.xlsx';
+                $writer = new Xlsx($spreadsheet);
+
+                header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                header('Content-Disposition: attachment;filename="' . $fileName . '"');
+                header('Cache-Control: max-age=0');
+
+                $writer->save('php://output');
+                exit;
+            }
     }
 ?>

@@ -46,6 +46,19 @@
                         ->find($id);
         }
 
+        public function getData($lastId, $limit, $category_id = null){
+            $builder = $this->select('products.id as id, products.name as name, products.category_id as category_id, products.price as price, products.stock as stock, c.name as category')
+                        ->join('categories c', 'products.category_id = c.id')
+                        ->where('products.id >', $lastId)
+                        ->limit($limit)
+                        ->orderBy('products.id', 'ASC');
+            
+            if ($category_id !== null){
+                $builder->where('products.category_id', $category_id);
+            }
+            return $builder;
+        }
+
         public function addData(array $data){
             $this->insert($data);
             return $this->getInsertID();

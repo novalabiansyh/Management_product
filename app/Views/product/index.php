@@ -10,6 +10,9 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">Data Produk</h5>
         <div>
+            <a href="<?= site_url('products/exportExcel') ?>?category=" id="btnExportExcel" class="btn btn-warning btn-sm me-2">
+                Export Excel
+            </a>
             <a href="<?= site_url('products/exportPdf') ?>?category=" id="btnExportPdf" class="btn btn-success btn-sm me-2" target="_blank">
                 Export PDF
             </a>
@@ -68,6 +71,7 @@
 
 <script>
 const exportPdfBaseUrl = "<?= site_url('products/exportPdf') ?>";
+const exportExcelBaseUrl = "<?= site_url('products/exportExcel') ?>";
 let tbl;
 $(function () {
     tbl = $('#tblProduct').DataTable({
@@ -188,12 +192,15 @@ $('#categoryFilter').on('change', function() {
 
     // update link export pdf
     let url = exportPdfBaseUrl;
+    let urlx = exportExcelBaseUrl;
 
     if (categoryId) {
         url += '?category=' + categoryId;
+        urlx += '?category=' + categoryId;
     }
 
     $('#btnExportPdf').attr('href', url);
+    $('#btnExportExcel').attr('href', urlx);
 });
 
 function initCategorySelect2(data) {
