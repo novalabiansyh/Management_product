@@ -5,8 +5,12 @@
     use App\Models\CategoryModel;
     use Hermawan\DataTables\DataTable;
     use FPDF;
-use PhpOffice\PhpSpreadsheet\Reader\Xls;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
+    use PhpOffice\PhpSpreadsheet\IOFactory;
+    use PhpOffice\PhpSpreadsheet\Reader\Xls;
+    use PhpOffice\PhpSpreadsheet\Style\Alignment;
+    use PhpOffice\PhpSpreadsheet\Style\Fill;
+    use PhpOffice\PhpSpreadsheet\Style\Border;
+    use PhpOffice\PhpSpreadsheet\Spreadsheet;
     use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
     class Product extends BaseController{
@@ -220,7 +224,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
             return $this->response->setJSON([ 'items' => $result ]);
         }
 
-        public function exportPdf(){
+        public function printPdf(){
             if ($redirect = $this->checkLogin()){
                 return $redirect;
             }
@@ -355,61 +359,115 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
                 ->setBody($pdf->Output('S'));
         }
 
-            public function exportExcel(){
-                if ($redirect = $this->checkLogin()){
-                    return $redirect;
-                }
-
-                $category_id = $this->request->getGet('category');
-                $model = new ProductModel();
-
-                $spreadsheet = new Spreadsheet();
-                $sheet = $spreadsheet->getActiveSheet();
-
-                $sheet->setCellValue('A1', 'No');
-                $sheet->setCellValue('B1', 'Nama Produk');
-                $sheet->setCellValue('C1', 'Kategori');
-                $sheet->setCellValue('D1', 'Harga');
-                $sheet->setCellValue('E1', 'Stok');
-
-                $lastId = 0;
-                $limit = 5;
-                $rowExcel = 2;
-                $no = 1;
-                
-
-                do {
-                    if (!empty($category_id)){
-                        $rows = $model->getData($lastId, $limit, $category_id)->get()->getResultArray();
-                    } else {
-                        $rows = $model->getData($lastId, $limit)->get()->getResultArray();
-                    }
-
-                    foreach ($rows as $row){
-                        $sheet->setCellValue('A' . $rowExcel, $no++);
-                        $sheet->setCellValue('B' . $rowExcel, $row['name']);
-                        $sheet->setCellValue('C' . $rowExcel, $row['category']);
-                        $sheet->setCellValue('D' . $rowExcel, $row['price']);
-                        $sheet->setCellValue('E' . $rowExcel, $row['stock']);
-
-                        $rowExcel++;
-                        $lastId = $row['id'];
-                    }            
-                    // if (!empty($rows)){
-                    //     //update lastID
-                    //     $lastId = end($rows)['id'];
-                    // }
-                } while(!empty($rows));
-
-                $fileName = 'product.xlsx';
-                $writer = new Xlsx($spreadsheet);
-
-                header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-                header('Content-Disposition: attachment;filename="' . $fileName . '"');
-                header('Cache-Control: max-age=0');
-
-                $writer->save('php://output');
-                exit;
+        public function exportExcel()
+        {
+            if ($redirect = $this->checkLogin()){
+                return $redirect;
             }
+
+            $rows = json_decode($this->request->getPost('rows'), true);
+
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+
+            /* ===== STYLE ===== */
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFF']],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['argb' => '4CAF50']
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER
+                ],
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+                ]
+            ];
+
+            /* ===== JUDUL ===== */
+            $sheet->setCellValue('A1', 'DATA PRODUK');
+            $sheet->mergeCells('A1:E1');
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+            $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            /* ===== HEADER ===== */
+            $sheet->setCellValue('A3', 'No');
+            $sheet->setCellValue('B3', 'Nama Produk');
+            $sheet->setCellValue('C3', 'Kategori');
+            $sheet->setCellValue('D3', 'Price');
+            $sheet->setCellValue('E3', 'Stok');
+            $sheet->getStyle('A3:E3')->applyFromArray($headerStyle);
+
+            /* ===== DATA ===== */
+            $rowExcel = 4;
+            $no = 1;
+
+            foreach ($rows as $row) {
+                $sheet->setCellValue("A$rowExcel", $no++);
+                $sheet->setCellValue("B$rowExcel", $row['name']);
+                $sheet->setCellValue("C$rowExcel", $row['category']);
+                $sheet->setCellValue("D$rowExcel", $row['price']);
+                $sheet->setCellValue("E$rowExcel", $row['stock']);
+
+                $sheet->getStyle("D$rowExcel")->getNumberFormat()
+                    ->setFormatCode('"Rp" #,##0');
+
+                $rowExcel++;
+            }
+
+            $sheet->getColumnDimension('A')->setWidth(5);
+            $sheet->getColumnDimension('B')->setWidth(20);
+            $sheet->getColumnDimension('C')->setWidth(20);
+            $sheet->getColumnDimension('D')->setWidth(20);
+            $sheet->getColumnDimension('E')->setWidth(10);
+
+            $writer = new Xlsx($spreadsheet);
+            $filename = 'Data_Produk.xlsx';
+
+            return $this->response
+                ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->setHeader('Content-Disposition', 'attachment;filename="'.$filename.'"')
+                ->setBody($writer->save('php://output'));
+        }
+
+        public function exportExcelChunk()
+        {
+            if ($redirect = $this->checkLogin()){
+                return $redirect;
+            }
+
+            $limit = (int) $this->request->getGet('limit');
+            $offset = (int) $this->request->getGet('offset');
+            $category_id = $this->request->getGet('category');
+
+            $model = new ProductModel();
+            if(!empty($category_id)){
+                $rows = $model->getData($limit, $offset, $category_id);
+            } else {
+                $rows = $model->getData($limit, $offset);
+            }
+
+            return $this->response->setJSON($rows);
+        }
+
+        public function exportExcelCount(){
+            if($redirect = $this->checkLogin()){
+                return $redirect;
+            }
+
+            $category_id = $this->request->getGet('category');
+            $model = new ProductModel();
+
+            if (!empty($category_id)){
+                $total = $model->getDataCount($category_id);
+            } else {
+                $total = $model->getDataCount();
+            }
+
+            return $this->response->setJSON([
+                'total' => $total
+            ]);
+        }
     }
 ?>

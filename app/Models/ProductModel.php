@@ -46,15 +46,24 @@
                         ->find($id);
         }
 
-        public function getData($lastId, $limit, $category_id = null){
-            $builder = $this->select('products.id as id, products.name as name, products.category_id as category_id, products.price as price, products.stock as stock, c.name as category')
-                        ->join('categories c', 'products.category_id = c.id')
-                        ->where('products.id >', $lastId)
-                        ->limit($limit)
-                        ->orderBy('products.id', 'ASC');
-            
+        public function getData($limit, $offset, $category_id = null){
+            $builder = $this->select('products.id, products.name, products.price, products.stock, c.name as category')
+                            ->join('categories c', 'products.category_id = c.id')
+                            ->limit($limit, $offset)
+                            ->orderBy('products.id', 'ASC');
+
             if ($category_id !== null){
                 $builder->where('products.category_id', $category_id);
+            }
+            return $builder->get()->getResultArray();
+        }
+
+        public function getDataCount($category_id = null){
+            if ($category_id !== null){
+                $builder = $this->where('products.category_id', $category_id)
+                                ->countAllResults();
+            } else {
+                $builder = $this->countAll();
             }
             return $builder;
         }

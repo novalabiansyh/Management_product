@@ -10,16 +10,26 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">Data Produk</h5>
         <div>
-            <a href="<?= site_url('products/exportExcel') ?>?category=" id="btnExportExcel" class="btn btn-warning btn-sm me-2">
+            <button type="button" id="btnExportExcel" class="btn btn-warning btn-sm me-2">
                 Export Excel
-            </a>
-            <a href="<?= site_url('products/exportPdf') ?>?category=" id="btnExportPdf" class="btn btn-success btn-sm me-2" target="_blank">
+            </button>
+            <a href="<?= site_url('products/printPdf') ?>?category=" id="btnExportPdf" class="btn btn-success btn-sm me-2" target="_blank">
                 Export PDF
             </a>
             <button class="btn btn-primary btn-sm me-2"
                 onclick="openForm('<?= site_url('products/form') ?>')">
                 Tambah Produk
             </button>
+            <div id="exportProgress" style="display:none;">
+                <div style="margin-bottom:5px;">
+                    Exporting: <span id="progressText">0%</span>
+                </div>
+                <div style="width:100%; background:#ddd; height:20px;">
+                    <div id="progressBar"
+                        style="width:0%; height:100%; background:#4CAF50;">
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <div class="col-md-4">
@@ -70,8 +80,8 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-const exportPdfBaseUrl = "<?= site_url('products/exportPdf') ?>";
-const exportExcelBaseUrl = "<?= site_url('products/exportExcel') ?>";
+const exportPdfBaseUrl = "<?= site_url('products/printPdf') ?>";
+let currentCategory = '';
 let tbl;
 $(function () {
     tbl = $('#tblProduct').DataTable({
@@ -186,21 +196,82 @@ function deleteData(id) {
 }
 
 $('#categoryFilter').on('change', function() {
-    let categoryId = $(this).val(); //this itu elemen yg memicu event change
+    currentCategory = $(this).val(); //this itu elemen yg memicu event change
 
     tbl.ajax.reload();
 
     // update link export pdf
     let url = exportPdfBaseUrl;
-    let urlx = exportExcelBaseUrl;
 
-    if (categoryId) {
-        url += '?category=' + categoryId;
-        urlx += '?category=' + categoryId;
+    if (currentCategory) {
+        url += '?category=' + currentCategory;
     }
 
     $('#btnExportPdf').attr('href', url);
-    $('#btnExportExcel').attr('href', urlx);
+});
+
+$('#btnExportExcel').on('click', function () {
+    $('#exportProgress').show();
+
+    let limit = 500;
+    let offset = 0;
+    let allData = [];
+    let category = currentCategory;
+    let totalData = 0;
+
+    $.getJSON('products/exportExcelCount', function (res) {
+        totalData = res.total;
+        loadChunk();
+    });
+
+    function loadChunk() {
+        console.log('Chunk offset:', offset);
+
+        $.getJSON(
+            "<?= site_url('products/exportExcelChunk') ?>",
+            { limit, offset, category },
+            function (res) {
+                if (res.length > 0) {
+                    allData = allData.concat(res);
+                    offset += res.length;
+
+                    let persen = Math.round((offset / totalData) * 100);
+                    persen = Math.min(persen, 100);
+                    $('#progressBar').css('width', persen + '%');
+                    $('#progressText').text(persen + '%');
+
+                    loadChunk();
+                } else {
+                    exportExcel(allData);
+                }
+            }
+        );
+    }
+
+    function exportExcel(data) {
+        $.ajax({
+            url: "<?= site_url('products/exportExcel') ?>",
+            type: 'POST',
+            data: {
+                rows: JSON.stringify(data),
+                <?= csrf_token() ?>: '<?= csrf_hash() ?>'
+            },
+            xhrFields: {
+                responseType: 'blob'
+            },
+            success: function (blob) {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Data_Produk.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                $('#exportProgress').hide();
+            }
+        });
+    }
 });
 
 function initCategorySelect2(data) {
