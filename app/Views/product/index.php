@@ -83,6 +83,8 @@
 const exportPdfBaseUrl = "<?= site_url('products/printPdf') ?>";
 let currentCategory = '';
 let tbl;
+let isExporting = false;
+let exportBtnText = $('#btnExportExcel').text();
 $(function () {
     tbl = $('#tblProduct').DataTable({
         processing: true,
@@ -101,7 +103,7 @@ $(function () {
         },
         columns: [
             { data: 'no', orderable: false, searchable: false },
-            { data: 'name', name: 'p.name' },
+            { data: 'name', name: 'p.name', orderable: false },
             { data: 'category', name: 'c.name' },
             {
                 data: 'price',
@@ -211,6 +213,14 @@ $('#categoryFilter').on('change', function() {
 });
 
 $('#btnExportExcel').on('click', function () {
+    if (isExporting) return;
+
+    isExporting = true;
+    const $btn = $(this);
+    exportBtnText = $btn.text();
+    $btn.prop('disabled', true)
+        .text('sedang memproses...');
+
     $('#exportProgress').show();
 
     let limit = 500;
@@ -221,6 +231,11 @@ $('#btnExportExcel').on('click', function () {
 
     $.getJSON('products/exportExcelCount', function (res) {
         totalData = res.total;
+        
+        if (totalData === 0) {
+            finishExport();
+            return;
+        }
         loadChunk();
     });
 
@@ -268,9 +283,17 @@ $('#btnExportExcel').on('click', function () {
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                $('#exportProgress').hide();
+
+                finishExport();
             }
         });
+    }
+
+    function finishExport(){
+        isExporting = false;
+        $btn.prop('disabled', false)
+            .text(exportBtnText);
+        $('#exportProgress').hide();
     }
 });
 
