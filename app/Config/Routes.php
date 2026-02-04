@@ -32,4 +32,4 @@ $routes->get('category/form/(:any)', 'Category::forms/$1');
 $routes->post('category/add', 'Category::add');
 $routes->post('category/update/(:any)', 'Category::update/$1');
 $routes->post('category/delete/(:any)', 'Category::delete/$1');
-$routes->get('category/exportPdf', 'Product::exportPdf');
+$routes->get('category/printPdf', 'Category::printPdf');

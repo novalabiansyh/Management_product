@@ -14,7 +14,7 @@
                 Export Excel
             </button>
             <a href="<?= site_url('products/printPdf') ?>?category=" id="btnExportPdf" class="btn btn-success btn-sm me-2" target="_blank">
-                Export PDF
+                Print PDF
             </a>
             <button class="btn btn-primary btn-sm me-2"
                 onclick="openForm('<?= site_url('products/form') ?>')">
@@ -35,10 +35,6 @@
     <div class="col-md-4">
         <select id="categoryFilter" class="form-select">
             <option value="">Semua Kategori</option>
-                <?php 
-                    foreach ($categories as $cat): ?>
-            <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
-            <?php endforeach; ?>
         </select>
     </div>
     <br>
@@ -85,7 +81,9 @@ let currentCategory = '';
 let tbl;
 let isExporting = false;
 let exportBtnText = $('#btnExportExcel').text();
+let exportTimeout = null;
 $(function () {
+    initCategorySelect2Filter();
     tbl = $('#tblProduct').DataTable({
         processing: true,
         serverSide: true,
@@ -126,6 +124,28 @@ $(function () {
     });
 });
 
+function showALert(message, type = ''){
+    $('#alertModalContent')
+        .removeClass('border-success border-danger');
+    $('#alertModalTitle')
+        .removeClass('text-success text-danger');
+
+    let title = '';
+    if (type === 'success'){
+        title = 'Berhasil';
+        $('#alertModalContent').addClass('border-success');
+        $('#alertModalTitle').addClass('text-success');
+    } else if (type === 'error'){
+        title = 'Gagal';
+        $('#alertModalContent').addClass('border-danger');
+        $('#alertModalTitle').addClass('text-danger');
+    }
+
+    $('#alertModalTitle').text(title);
+    $('#alertModalBody').text(message);
+    $('#alertModal').modal('show');
+}
+
 function openForm(url) {
     $.ajax({
         url: url,
@@ -162,7 +182,7 @@ function editForm(id) {
     openForm('<?= site_url('products/form/') ?>' + id);
 }
 
-function deleteData(id) {
+function deleteData(id) { //parameter id dapat darimana?
     if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
         $.ajax({
             url: '<?= site_url('products/delete/') ?>' + id,
@@ -179,10 +199,10 @@ function deleteData(id) {
                         data = res;
                     }
                     if (data.status === 'success') {
-                        alert('Produk berhasil dihapus');
+                        showALert(data.message, 'success');
                         tbl.ajax.reload();
                     } else {
-                        alert('Gagal menghapus produk');
+                        showALert(data.message, 'error');
                     }
                 } catch (e) {
                     console.error('Error parsing response:', e);
@@ -219,11 +239,13 @@ $('#btnExportExcel').on('click', function () {
     const $btn = $(this);
     exportBtnText = $btn.text();
     $btn.prop('disabled', true)
-        .text('sedang memproses...');
+        .html('<span class="spinner-border spinner-border-sm me-1"></span> sedang memproses...');
 
     $('#exportProgress').show();
+    $('#progressBar').css('width', '0%');
+    $('#progressText').text('0%');
 
-    let limit = 500;
+    let limit = 100;
     let offset = 0;
     let allData = [];
     let category = currentCategory;
@@ -257,13 +279,23 @@ $('#btnExportExcel').on('click', function () {
 
                     loadChunk();
                 } else {
-                    exportExcel(allData);
+                    $('#progressBar').css('width', '100%');
+                    $('#progressText').text('100%');
+
+                    setTimeout(() => {
+                        exportExcel(allData);
+                    }, 300);
                 }
             }
         );
     }
 
     function exportExcel(data) {
+        
+        exportTimeout = setTimeout(() => {
+            finishExport(); // hide loading, enable button
+        }, 1500);
+
         $.ajax({
             url: "<?= site_url('products/exportExcel') ?>",
             type: 'POST',
@@ -283,8 +315,14 @@ $('#btnExportExcel').on('click', function () {
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-
-                finishExport();
+            },
+            error: function (xhr) {
+                alert('Gagal export excel');
+                console.error(xhr);
+            },
+            complete: function(){
+                clearTimeout(exportTimeout);
+                finishExport();         
             }
         });
     }
@@ -329,5 +367,31 @@ function initCategorySelect2(data) {
     $('#category_id').append(opt).trigger('change');
   }
 }
+
+function initCategorySelect2Filter(){
+    $('#categoryFilter').select2({
+        placeholder: 'Semua Kategori',
+        allowClear: true,
+        width: '100%',
+        ajax: {
+            url: "<?= site_url('products/categoryList') ?>",
+            type: 'POST',
+            dataType: 'json',
+            delay: 250,
+            data: function (params){
+                return {
+                    search: params.term,
+                    <?= csrf_token() ?>: '<?= csrf_hash() ?>'
+                };
+            },
+            processResults: function (res){
+                return {
+                    results: res.items
+                };
+            }
+        }
+    });
+}
+
 </script>
 <?= $this->endSection() ?>
