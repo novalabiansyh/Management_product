@@ -100,13 +100,23 @@
                 ]);
             }
 
+            if ($model->isProductExist($name)){
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'nama produk sudah tersedia'
+                ]);
+            }
+
             $db->transBegin();
 
             $model->addData($data);
 
             if ($db->transStatus() === false){
                 $db->transRollback();
-                return $this->response->setJSON([ 'status' => 'error' ]);
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Gagal menambah data' 
+                ]);
             } else {
                 $db->transCommit();
                 return $this->response->setJSON([ 'status' => 'success' ]);
@@ -138,13 +148,23 @@
                 ]);
             }
 
+            if ($model->isProductExist($name)){
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'nama produk sudah tersedia'
+                ]);
+            }
+
             $db->transBegin();
 
             $model->updateData($id, $data);
 
             if ($db->transStatus() === false){
                 $db->transRollback();
-                return $this->response->setJSON([ 'status' => 'error' ]);
+                return $this->response->setJSON([ 
+                    'status' => 'error',
+                    'message' => 'Gagal mengubah data'
+                ]);
             } else {
                 $db->transCommit();
                 return $this->response->setJSON([ 'status' => 'success' ]);
@@ -162,10 +182,16 @@
 
             if ($db->transStatus() === false) {
                 $db->transRollback();
-                return $this->response->setJSON([ 'status' => 'error' ]);
+                return $this->response->setJSON([ 
+                    'status' => 'error',
+                    'message' => 'gagal menghapus data'
+                ]);
             } else {
                 $db->transCommit();
-                return $this->response->setJSON([ 'status' => 'success' ]);
+                return $this->response->setJSON([
+                    'status' => 'success',
+                    'message' => 'Data Berhasil dihapus' 
+                ]);
             }
         }
 
@@ -229,7 +255,7 @@
                 return $redirect;
             }
             $categoryFilter = $this->request->getGet('category'); //ambil filter kategory(dari url) kalo ada
-
+            
             $model = new ProductModel();
             $categoryModel = new CategoryModel();
             if (!empty($categoryFilter)){
@@ -259,7 +285,7 @@
             $pdf->setX($xRight);
             $pdf->Cell(21, 6.3, 'Tanggal Terbit', 1, 1);
             $pdf->setX($xRight);
-            $pdf->Cell(21, 6, 'Halaman', 1, 0);
+            $pdf->Cell(21, 6.1, 'Halaman', 1, 0);
 
             $pdf->SetFont('Arial', '', 9);
             $pdf->SetXY($xRight + 21, $yTop);
@@ -269,7 +295,7 @@
             $pdf->setX($xRight + 21);
             $pdf->Cell(29, 6.3, date('d F Y'), 1, 1);
             $pdf->setX($xRight + 21);
-            $pdf->Cell(29, 6, '1', 1, 1);
+            $pdf->Cell(29, 6.1, '1', 1, 1);
 
             $pdf->SetFont('Arial', '', 8);
             $pdf->SetXY($xRight + 50, $yTop);
@@ -385,6 +411,12 @@
                 ]
             ];
 
+            $dataStyle = [
+                'borders' => [
+                    'allBorders' => ['borderStyle' => Border::BORDER_THIN]
+                ]
+            ];
+
             /* ===== JUDUL ===== */
             $sheet->setCellValue('A1', 'DATA PRODUK');
             $sheet->mergeCells('A1:E1');
@@ -412,6 +444,7 @@
 
                 $sheet->getStyle("D$rowExcel")->getNumberFormat()
                     ->setFormatCode('"Rp" #,##0');
+                $sheet->getStyle("A$rowExcel:E$rowExcel")->applyFromArray($dataStyle);
 
                 $rowExcel++;
             }
@@ -467,6 +500,122 @@
 
             return $this->response->setJSON([
                 'total' => $total
+            ]);
+        }
+
+        public function import(){
+            if ($this->request->getMethod() === 'GET'){
+                return view('product/import_form');
+            }
+
+            $file = $this->request->getFile('file');
+
+            if (!$file || !$file->isValid()){
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'File tidak valid'
+                ]);
+            }
+
+            $ext = $file->getClientExtension();
+            if (!in_array($ext, ['xlsx', 'xls'])){
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Format file tidak valid'
+                ]);
+            }
+
+            $path = WRITEPATH . 'uploads/';
+            $newName = $file->getRandomName();
+            $file->move($path, $newName);
+
+            $spreadsheet = IOFactory::load($path . $newName);
+            $sheet = $spreadsheet->getActiveSheet()->toArray();
+
+            unset($sheet[0]);
+            $sheet = array_values($sheet);
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'total' => count($sheet),
+                'file' => $newName
+            ]);
+        }
+
+        public function importChunk()
+        {
+            $file   = $this->request->getGet('file');
+            $offset = (int) $this->request->getGet('offset');
+            $limit  = (int) $this->request->getGet('limit');
+
+            $path = WRITEPATH . 'uploads/' . $file;
+
+            if (!file_exists($path)) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'file tidak ditemukan'
+                ]);
+            }
+
+            $spreadsheet = IOFactory::load($path);
+            $rows = $spreadsheet->getActiveSheet()->toArray();
+
+            unset($rows[0]); // header
+            $rows = array_values($rows);
+
+            $chunk = array_slice($rows, $offset, $limit);
+
+            $model = new ProductModel();
+            $insertData = [];
+            $success = 0;
+            $failed = 0;
+
+            foreach ($chunk as $row) {
+
+                $name     = trim($row[1]); // Nama Produk
+                $categoryName = trim(preg_replace('/\s+/u', ' ', $row[2])); // Kategori
+                $price    = preg_replace('/[^0-9]/', '', $row[3]);
+                $stock    = $row[4];
+
+                $category = $model->getCategoryId($categoryName);
+
+                if (!$category) {
+                    $failed++;
+                    continue;
+                }
+
+                $data = [
+                    'name'        => $name,
+                    'category_id'=> $category['id'],
+                    'price'      => (float) $price,
+                    'stock'      => (int) $stock,
+                ];
+                    
+                if($model->isProductExist($name)){
+                    $failed++;
+                    continue;
+                }
+
+                if (empty($data['name']) || empty($data['category_id']) || !is_numeric($data['price']) || !is_numeric($data['stock'])){
+                    $failed++;
+                    continue;
+                }
+
+                $insertData[] = $data;
+                $success++;
+            }
+
+            if (!empty($insertData)) {
+                $model->insertBatchData($insertData);
+            }
+
+            return $this->response->setJSON([
+                'status'  => 'success',
+                'offset' => $offset,
+                'limit' => $limit,
+                'success' => $success,
+                'failed'  => $failed,
+                'rows' => $insertData
             ]);
         }
     }

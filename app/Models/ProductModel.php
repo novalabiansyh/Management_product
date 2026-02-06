@@ -68,6 +68,27 @@
             return $builder;
         }
 
+        public function getCategoryId($categoryName){
+            return $this->db->table('categories')
+                            ->select('id')
+                            ->where('LOWER(TRIM(name))', strtolower(trim($categoryName)))
+                            ->get()
+                            ->getRowArray();
+        }
+
+        public function insertBatchData($data)
+        {
+            $this->insertBatch($data);
+            return ['success' => count($data), 'failed' => 0];
+        }
+
+        public function isProductExist($name)
+        {
+            return $this->where('LOWER(TRIM(name))', strtolower(trim($name)))
+                        ->countAllResults() > 0;
+        }
+
+
         public function addData(array $data){
             $this->insert($data);
             return $this->getInsertID();

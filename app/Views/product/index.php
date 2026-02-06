@@ -10,6 +10,9 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">Data Produk</h5>
         <div>
+            <button class="btn btn-secondary btn-sm me-2" onclick="openImportForm('<?= site_url('products/import') ?>')">
+                Import Excel
+            </button>
             <button type="button" id="btnExportExcel" class="btn btn-warning btn-sm me-2">
                 Export Excel
             </button>
@@ -160,6 +163,7 @@ function openForm(url) {
                 }
 
                 $('#modalBody').html(data.view);
+                $('#modalForm .modal-title').text('Form Produk');
                 $('#modalForm')
                 .off('shown.bs.modal')
                 .on('shown.bs.modal', function () {
@@ -180,6 +184,25 @@ function openForm(url) {
 
 function editForm(id) {
     openForm('<?= site_url('products/form/') ?>' + id);
+}
+
+function openImportForm(url){
+    $('#modalForm').off('shown.bs.modal');
+    $('#modalBody').empty();
+    $('#modalForm .modal-title').text('Import Excel');
+
+    $.ajax({
+        url : url,
+        type : 'GET',
+        success : function(res) {
+            $('#modalBody').html(res);
+            $('#modalForm').modal('show');
+        },
+        error: function(xhr){
+            console.error(xhr.responseText);
+            alert('Terjadi kesalahan');
+        }
+    });
 }
 
 function deleteData(id) { //parameter id dapat darimana?
@@ -294,7 +317,7 @@ $('#btnExportExcel').on('click', function () {
         
         exportTimeout = setTimeout(() => {
             finishExport(); // hide loading, enable button
-        }, 1500);
+        }, 2000);
 
         $.ajax({
             url: "<?= site_url('products/exportExcel') ?>",

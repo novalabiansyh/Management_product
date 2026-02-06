@@ -23,6 +23,8 @@ $routes->get('products/printPdf', 'Product::printPdf');
 $routes->get('products/exportExcelChunk', 'Product::exportExcelChunk');
 $routes->post('products/exportExcel', 'Product::exportExcel');
 $routes->get('products/exportExcelCount', 'Product::exportExcelCount');
+$routes->add('products/import', 'Product::import');
+$routes->get('products/importChunk', 'Product::importChunk');
 
 //route untuk category
 $routes->get('category', 'Category::index');
