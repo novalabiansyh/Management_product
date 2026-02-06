@@ -16,8 +16,14 @@
         </div>
     </div>
     <div id="importResult" class="mt-3"></div>
-    <div>
-        <button type="button" class="btn btn-primary" id="btnImport" onclick="submitImport()">Import</button>
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <a href="<?= site_url('products/downloadTemplate') ?>" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-download me-1"></i>Template
+        </a>
+
+        <button type="button" class="btn btn-primary" id="btnImport" onclick="submitImport()">
+            <i class="bi bi-upload me-1"></i> Import
+        </button>
     </div>
 </form>
 
@@ -35,8 +41,6 @@ let totalFailed = 0;
     importOffset = 0;
     totalSuccess = 0;
     totalFailed = 0;
-
-    $('#btnImport').prop('disabled', true).text('sedang memproses...');
 
     $('#importResult').html('');
     $('#importProgressBar').css('width', '0%');
@@ -56,6 +60,8 @@ let totalFailed = 0;
                 importFile = res.file;
                 importTotal = res.total;
                 importOffset = 0;
+
+                $('#btnImport').prop('disabled', true).text('sedang memproses...');
 
                 $('#importProgress').show();
                 startImportChunk();

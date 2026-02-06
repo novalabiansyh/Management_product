@@ -25,6 +25,7 @@ $routes->post('products/exportExcel', 'Product::exportExcel');
 $routes->get('products/exportExcelCount', 'Product::exportExcelCount');
 $routes->add('products/import', 'Product::import');
 $routes->get('products/importChunk', 'Product::importChunk');
+$routes->get('products/downloadTemplate', 'Product::downloadTemplate');
 
 //route untuk category
 $routes->get('category', 'Category::index');

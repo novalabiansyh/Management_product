@@ -618,5 +618,14 @@
                 'rows' => $insertData
             ]);
         }
+
+        public function downloadTemplate(){
+            $path = WRITEPATH . 'template/template_produk.xlsx';
+
+            if (!file_exists($path)){
+                return redirect()->back()->with('error', 'template tidak tersedia');
+            }
+            return $this->response->download($path, null);
+        }
     }
 ?>
