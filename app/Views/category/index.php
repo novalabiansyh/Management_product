@@ -10,8 +10,8 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">Data Kategori</h5>
         <div>
-            <a href="<?= site_url('category/exportPdf') ?>?category=" id="btnExportPdf" class="btn btn-success btn-sm me-2" target="_blank">
-                Export PDF
+            <a href="<?= site_url('category/printPdf') ?>" id="btnPrintPdf" class="btn btn-success btn-sm me-2" target="_blank">
+                Print PDF
             </a>
             <button class="btn btn-primary btn-sm me-2" onclick="openForm('<?= site_url('category/form') ?>')">
                 Tambah Kategori
@@ -20,6 +20,7 @@
     </div>
     <br>
 
+    <div id="alertBox", class="alert d-none" role="alert"></div>
     <table id="tblCategory" class="table table-bordered table-striped w-100">
         <thead>
             <tr>
@@ -54,7 +55,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-    const exportPdfBaseUrl = "<?= site_url('category/exportPdf') ?>";
+    const printPdfBaseUrl = "<?= site_url('category/printPdf') ?>";
     let tbl;
     $(function () {
         tbl = $('#tblCategory').DataTable({
@@ -63,7 +64,7 @@
             language: {
                 searchPlaceholder: 'Cari nama kategori...'
             },
-            order: [1, 'asc'], //kenapa kotak nya ada 2 di product index
+            order: [1, 'asc'],
             ajax: {
                 url: "<?= base_url('category/datatable') ?>",
                 type: "POST",
@@ -82,6 +83,29 @@
             }
         });
     });
+
+function showAlert(message, type = '') {
+    $('#alertModalContent')
+        .removeClass('border-success border-danger');
+        
+    $('#alertModalTitle')
+    .removeClass('text-success text-danger');
+
+    let title = '';
+    if (type === 'success'){
+        title = 'Berhasil';
+        $('#alertModalContent').addClass('border-success');
+        $('#alertModalTitle').addClass('text-success');
+    } else if (type === 'error'){
+        title = 'Gagal';
+        $('#alertModalContent').addClass('border-danger');
+        $('#alertModalTitle').addClass('text-danger');
+    }
+
+    $('#alertModalTitle').text(title);
+    $('#alertModalBody').text(message);
+    $('#alertModal').modal('show');
+}
 
 function openForm(url){ //url dapat darimana?
     $.ajax({
@@ -132,10 +156,10 @@ function deleteData(id){
                     }
 
                     if (data.status === 'success') {
-                        alert('kategori berhasil dihapus');
+                        showAlert(data.message, 'success');
                         tbl.ajax.reload();
                     } else {
-                        alert('Gagal menghapus kategori');
+                        showAlert(data.message, 'error');
                     }
                 } catch (e){
                     console.error('Error parsing response', e);
@@ -149,6 +173,6 @@ function deleteData(id){
         });
     }
 }
-$('#btnExportPdf').attr('href', url);
+$('#btnPrintPdf').attr('href', url);
 </script>
 <?= $this->endSection(); ?>
