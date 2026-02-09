@@ -464,8 +464,7 @@
                 ->setBody($writer->save('php://output'));
         }
 
-        public function exportExcelChunk()
-        {
+        public function exportExcelChunk(){
             if ($redirect = $this->checkLogin()){
                 return $redirect;
             }
@@ -542,8 +541,10 @@
             ]);
         }
 
-        public function importChunk()
-        {
+        public function importChunk(){
+            $db = \Config\Database::connect();
+
+
             $file   = $this->request->getGet('file');
             $offset = (int) $this->request->getGet('offset');
             $limit  = (int) $this->request->getGet('limit');
@@ -586,9 +587,9 @@
 
                 $data = [
                     'name'        => $name,
-                    'category_id'=> $category['id'],
-                    'price'      => (float) $price,
-                    'stock'      => (int) $stock,
+                    'category_id' => $category['id'],
+                    'price'       => (float) $price,
+                    'stock'       => (int) $stock,
                 ];
                     
                 if($model->isProductExist($name)){
@@ -602,21 +603,32 @@
                 }
 
                 $insertData[] = $data;
-                $success++;
             }
+
+            $db->transBegin();
 
             if (!empty($insertData)) {
                 $model->insertBatchData($insertData);
             }
 
-            return $this->response->setJSON([
-                'status'  => 'success',
-                'offset' => $offset,
-                'limit' => $limit,
-                'success' => $success,
-                'failed'  => $failed,
-                'rows' => $insertData
-            ]);
+            if ($db->transStatus() === false){
+                $db->transRollback();
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'gagal import data',
+                ]);
+            } else {
+                $db->transCommit();
+                $success = count($insertData);
+                return $this->response->setJSON([
+                    'status'  => 'success',
+                    'offset' => $offset,
+                    'limit' => $limit,
+                    'success' => $success,
+                    'failed'  => $failed,
+                    'rows' => $insertData
+                ]);
+            }
         }
 
         public function downloadTemplate(){

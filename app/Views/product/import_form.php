@@ -21,9 +21,15 @@
             <i class="bi bi-download me-1"></i>Template
         </a>
 
+        <div>
+        <button type="button" class="btn btn-outline-danger me-2 d-none" id="btnCancelImport">
+            <i class="bi bi-x-circle me-1"></i> Cancel
+        </button>
+
         <button type="button" class="btn btn-primary" id="btnImport" onclick="submitImport()">
             <i class="bi bi-upload me-1"></i> Import
         </button>
+    </div>
     </div>
 </form>
 
@@ -34,8 +40,11 @@ let importOffset = 0;
 let importLimit = 100;
 let totalSuccess = 0;
 let totalFailed = 0;
+let isCanceled = false;
+
     function submitImport() {
     //reset variable
+    isCanceled = false;
     importFile = '';
     importTotal = 0;
     importOffset = 0;
@@ -62,6 +71,7 @@ let totalFailed = 0;
                 importOffset = 0;
 
                 $('#btnImport').prop('disabled', true).text('sedang memproses...');
+                $('#btnCancelImport').removeClass('d-none');
 
                 $('#importProgress').show();
                 startImportChunk();
@@ -73,12 +83,18 @@ let totalFailed = 0;
 }
 
 function startImportChunk() {   
+
+    if (isCanceled) return;
+
     $.getJSON("<?= site_url('products/importChunk') ?>",{
             file: importFile,
             offset: importOffset,
             limit: importLimit
         },
         function(res) {
+
+            if (isCanceled) return;
+
             totalSuccess += res.success;
             totalFailed += res.failed;
             importOffset += importLimit;
@@ -98,6 +114,7 @@ function startImportChunk() {
         } else {
             // selesai
             $('#btnImport').prop('disabled', false).text('Import');
+            $('#btnCancelImport').addClass('d-none');
             $('#importProgressBar').css('width', '100%');
             $('#importProgressText').text('100%');
 
@@ -114,5 +131,24 @@ function startImportChunk() {
         }
     );
 }
+
+$('#btnCancelImport').on('click', function () {
+    if (!confirm('Batalkan proses import?')) return;
+
+    isCanceled = true;
+
+    $('#btnImport').prop('disabled', false).text('Import');
+    $('#btnCancelImport').addClass('d-none');
+
+    $('#importProgress').hide();
+
+    $('#importResult').html(`
+        <div class="alert alert-secondary">
+            Proses import dibatalkan.<br>
+            Success: ${totalSuccess}<br>
+            Failed: ${totalFailed}
+        </div>
+    `);
+});
 
 </script>
