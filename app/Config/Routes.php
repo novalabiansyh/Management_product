@@ -11,21 +11,32 @@ $routes->post('login', 'Login::processLogin');
 $routes->get('logout', 'Login::logout');
 
 //route untuk products
-$routes->get('products', 'Product::index');
-$routes->post('products/datatable', 'Product::datatable');
-$routes->get('products/form', 'Product::forms');
-$routes->get('products/form/(:any)', 'Product::forms/$1');
-$routes->post('products/add', 'Product::add');
-$routes->post('products/update/(:any)', 'Product::update/$1');
-$routes->post('products/delete/(:any)', 'Product::delete/$1');
-$routes->post('products/categoryList', 'Product::categoryList');
-$routes->get('products/printPdf', 'Product::printPdf');
-$routes->get('products/exportExcelChunk', 'Product::exportExcelChunk');
-$routes->post('products/exportExcel', 'Product::exportExcel');
-$routes->get('products/exportExcelCount', 'Product::exportExcelCount');
-$routes->add('products/import', 'Product::import');
-$routes->get('products/importChunk', 'Product::importChunk');
-$routes->get('products/downloadTemplate', 'Product::downloadTemplate');
+$routes->group('products', ['namespace' => 'App\Controllers'], function($routes) {
+    $routes->get('', 'Product::index');
+    $routes->post('datatable', 'Product::datatable');
+    $routes->get('form', 'Product::forms');
+    $routes->get('form/(:any)', 'Product::forms/$1');
+    $routes->post('add', 'Product::add');
+    $routes->post('update/(:any)', 'Product::update/$1');
+    $routes->post('delete/(:any)', 'Product::delete/$1');
+    $routes->post('categoryList', 'Product::categoryList');
+    $routes->get('printPdf', 'Product::printPdf');
+    $routes->get('exportExcelChunk', 'Product::exportExcelChunk');
+    $routes->post('exportExcel', 'Product::exportExcel');
+    $routes->get('exportExcelCount', 'Product::exportExcelCount');
+    $routes->add('import', 'Product::import');
+    $routes->get('importChunk', 'Product::importChunk');
+    $routes->get('downloadTemplate', 'Product::downloadTemplate');
+ 
+});
+
+$routes->group('files', ['namespace' => 'App\Controllers'], function($routes) {
+    $routes->post('datatable', 'File::datatable');
+    $routes->post('upload', 'File::upload');
+    $routes->get('download/(:num)', 'File::download/$1');
+    $routes->post('delete/(:num)', 'File::delete/$1');
+});
+
 
 //route untuk category
 $routes->get('category', 'Category::index');

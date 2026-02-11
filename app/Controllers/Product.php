@@ -73,6 +73,8 @@
                                 onclick="editForm(\'' . $row->id . '\')">Edit</button>
                             <button class="btn btn-danger btn-sm"
                                 onclick="deleteData(\'' . $row->id . '\')">Hapus</button>
+                            <button class="btn btn-primary btn-sm"
+                                onclick="uploadForm(\'' . $row->id . '\')">Upload</button>
                         ';
                     })
                     ->toJson(true);
@@ -207,34 +209,27 @@
 
         public function forms($id = '')
         {
-            $this->checkLogin();
-            
+            if ($redirect = $this->checkLogin()) {
+                return $redirect;
+            }
+
             $form_type = empty($id) ? 'add' : 'edit';
             $row = [];
-            $productid = '';
+            $productid = $id;
 
             if ($id != '') {
-                $productid = $id;
                 $row = $this->productModel->getOneWithCategory($id);
 
                 if (!$row) {
-                    return $this->response->setJSON([
-                        'error' => 'Data produk tidak ditemukan'
-                    ]);
+                    return redirect()->to(site_url('products'))->with('error', 'Data produk tidak ditemukan');
                 }
             }
 
-            $view = view('product/form', [
+            return view('product/form', [
+                'title'     => ($form_type == 'add' ? 'Tambah' : 'Edit') . ' Produk',
                 'form_type' => $form_type,
-                'row' => $row,
-                'productid' => $productid
-            ]);
-
-            return $this->response->setJSON([
-                'view' => $view,
-                'row' => $row,
-                'form_type' => $form_type,
-                'csrfToken' => csrf_hash()
+                'row'       => $row,
+                'productid' => $productid,
             ]);
         }
 
