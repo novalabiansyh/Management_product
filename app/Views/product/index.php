@@ -559,32 +559,66 @@ function uploadForm(productId) {
 
     Dropzone.autoDiscover = false;
 
-    let myDropzone = new Dropzone("#myDropzone", {
-        url: "<?= base_url('files/upload') ?>", // endpoint upload
-        autoProcessQueue: false,
-        paramName: "file",
-        maxFilesize: 50, // MB
-        chunking: true,
-        forceChunking: true,
-        chunkSize: 2000000, // 2MB
-        retryChunks: true,
-        retryChunksLimit: 3,
-        parallelUploads: 1,
-        addRemoveLinks: true,
-        init: function () {
-            this.on("sending", function (file, xhr, formData) {
-                formData.append("refid", currentProductId);
-            });
+        let myDropzone = new Dropzone("#myDropzone", {
+            url: "<?= base_url('files/upload') ?>",
+            autoProcessQueue: false,
+            paramName: "file",
+            maxFilesize: 50,
+            chunking: true,
+            forceChunking: true,
+            chunkSize: 2000000, 
+            retryChunks: true,
+            retryChunksLimit: 3,
+            parallelUploads: 1, 
+            addRemoveLinks: true,
+            init: function () {
+                let dz = this;
+                let modalEl = $('#uploadModal');
+                let btnUpload = $("#btnUpload");
+                let btnClose = modalEl.find('.btn-close');
 
-            this.on("success", function (file, response) {
-                $('#datatableFiles').DataTable().ajax.reload();
-            });
+                dz.on("sending", function (file, xhr, formData) {
+                    formData.append("refid", currentProductId);
+                    formData.append("<?= csrf_token() ?>", "<?= csrf_hash() ?>");
 
-            document.querySelector("#btnUpload").addEventListener("click", () => {
-            this.processQueue();
-            });
-        }
-    });
+                    modalEl.attr('data-bs-backdrop', 'static');
+                    modalEl.attr('data-bs-keyboard', 'false');
+
+                    btnUpload.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Uploading...');
+                    btnClose.hide();
+                });
+
+                dz.on("success", function (file, response) {
+                    $('#datatableFiles').DataTable().ajax.reload(null, false);
+                });
+
+                dz.on("queuecomplete", function () {
+                    modalEl.attr('data-bs-backdrop', 'true');
+                    modalEl.attr('data-bs-keyboard', 'true');
+                    
+                    btnUpload.prop('disabled', false).text('Upload');
+                    btnClose.show();
+
+                    dz.removeAllFiles(true);
+
+                    console.log("Semua file selesai diupload.");
+                });
+
+                dz.on("error", function(file, message) {
+                    alert("Error: " + message);
+                    btnUpload.prop('disabled', false).text('Upload');
+                    btnClose.show();
+                });
+
+                btnUpload.on("click", function() {
+                    if (dz.getQueuedFiles().length > 0) {
+                        dz.processQueue();
+                    } else {
+                        alert("Silakan pilih file terlebih dahulu.");
+                    }
+                });
+            }
+        });
   
     function deleteFile(fileId) {
         if (confirm("Yakin mau hapus file ini?")) {

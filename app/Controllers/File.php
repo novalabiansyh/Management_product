@@ -65,52 +65,69 @@ class File extends BaseController
         }
     }
 
-    public function upload(){
+   public function upload()
+    {
         $this->checkLogin();
 
         $refid = $this->request->getPost('refid');
-        $file = $this->request->getFile('file');
+        $file  = $this->request->getFile('file');
 
-        if (!$file->isValid()){
+        $chunkIndex  = $this->request->getPost('dzchunkindex');
+        $totalChunks = $this->request->getPost('dztotalchunkcount');
+        $uuid        = $this->request->getPost('dzuuid'); 
+
+        if (!$file->isValid()) {
             return $this->response->setJSON([
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => $file->getErrorString()
             ]);
         }
 
-        $newName = $file->getRandomName();
+        $tempDir  = WRITEPATH . 'uploads/temp/';
+        if (!is_dir($tempDir)) mkdir($tempDir, 0777, true);
+        
+        $tempFileName = $uuid . '_' . $file->getClientName();
+        $tempFilePath = $tempDir . $tempFileName;
 
-        $subdir = 'uploads/' . $newName; // contoh: uploads/2026/02/11
-        $path   = FCPATH . $subdir;
-        $file->move($path, $newName);
+        $content = file_get_contents($file->getTempName());
+        file_put_contents($tempFilePath, $content, FILE_APPEND);
 
-        $data = [
-            'refid'         => $refid,
-            'filename'      => $newName,
-            'filerealname'  => $file->getClientName(),
-            'filedirectory' => $subdir,
-            'created_date'  => date('Y-m-d H:i:s'),
-            'created_by'    => session()->get('id'),
-            'isactive'      => true
-        ];
+        if ($chunkIndex + 1 == $totalChunks) {
+            
+            $newName = $file->getRandomName();
+            $subdir  = 'uploads/' . date('Y/m/d');
+            $finalPath = FCPATH . $subdir;
 
-        $this->db->transBegin();
+            if (!is_dir($finalPath)) mkdir($finalPath, 0777, true);
 
-        $this->fileModel->addFile($data);
+            rename($tempFilePath, $finalPath . '/' . $newName);
 
-        if ($this->db->transStatus() === false){
-            $this->db->transRollback();
-            return $this->response->setJSON([
-                'status' => 'error',
-                'message' => 'Gagal menyimpan file'
-            ]);
-        } else {
-            $this->db->transCommit();
-            return $this->response->setJSON([
-                'status' => 'success',
-                'message' => 'File berhasil diupload'
-            ]);
+            $data = [
+                'refid'         => $refid,
+                'filename'      => $newName,
+                'filerealname'  => $file->getClientName(),
+                'filedirectory' => $subdir . '/' . $newName,
+                'created_date'  => date('Y-m-d H:i:s'),
+                'created_by'    => session()->get('id'),
+                'isactive'      => true
+            ];
+
+            $this->db->transBegin();
+            $this->fileModel->addFile($data);
+
+            if ($this->db->transStatus() === false) {
+                $this->db->transRollback();
+                return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menyimpan file ke DB']);
+            } else {
+                $this->db->transCommit();
+                return $this->response->setJSON(['status' => 'success', 'message' => 'File utuh berhasil disimpan']);
+            }
         }
+
+        return $this->response->setJSON([
+            'status'  => 'uploading',
+            'message' => 'Chunk ' . ($chunkIndex + 1) . ' dari ' . $totalChunks . ' diterima'
+        ]);
     }
 
     public function download($id)
