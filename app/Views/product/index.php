@@ -7,40 +7,73 @@
 <?= $this->section('content') ?>
 
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">Data Produk</h5>
-        <div>
-            <button class="btn btn-secondary btn-sm me-2" onclick="openImportForm('<?= site_url('products/import') ?>')">
-                Import Excel
-            </button>
-            <button type="button" id="btnExportExcel" class="btn btn-warning btn-sm me-2">
-                Export Excel
-            </button>
-            <a href="<?= site_url('products/printPdf') ?>?category=" id="btnExportPdf" class="btn btn-success btn-sm me-2" target="_blank">
-                Print PDF
-            </a>
-            <button class="btn btn-primary btn-sm me-2"
-                onclick="openForm('<?= site_url('products/form') ?>')">
-                Tambah Produk
-            </button>
-            <div id="exportProgress" style="display:none;">
-                <div style="margin-bottom:5px;">
-                    Exporting: <span id="progressText">0%</span>
-                </div>
-                <div style="width:100%; background:#ddd; height:20px;">
-                    <div id="progressBar"
-                        style="width:0%; height:100%; background:#4CAF50;">
-                    </div>
-                </div>
+<h5 class="mb-3">Data Produk</h5>
+<div class="d-flex align-items-start justify-content-between mb-3 gap-3">
+    <div class="flex-grow-1">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small">From Date</label>
+                <input type="date" id="fromDate" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label small">To Date</label>
+                <input type="date" id="toDate" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label small">Kategori</label>
+                <select id="categoryFilter" class="form-select form-select-sm">
+                    <option value="">Semua Kategori</option>
+                </select>
             </div>
         </div>
+
+        <div class="d-flex gap-2 mt-2">
+            <button id="btnFilter" class="btn btn-primary btn-sm px-4">
+                Filter
+            </button>
+            <button id="btnReset" class="btn btn-secondary btn-sm px-4">
+                Reset
+            </button>
+        </div>
+
     </div>
-    <div class="col-md-4">
-        <select id="categoryFilter" class="form-select">
-            <option value="">Semua Kategori</option>
-        </select>
+
+    <div class="d-flex gap-2 flex-shrink-0 align-items-center mt-4">
+        <button class="btn btn-secondary btn-sm"
+            onclick="openImportForm('<?= site_url('products/import') ?>')">
+            Import Excel
+        </button>
+
+        <button type="button" id="btnExportExcel" class="btn btn-warning btn-sm">
+            Export Excel
+        </button>
+
+        <a href="<?= site_url('products/printPdf') ?>?category="
+           id="btnPrintPdf"
+           class="btn btn-success btn-sm"
+           target="_blank">
+            Print PDF
+        </a>
+
+        <button class="btn btn-primary btn-sm"
+            onclick="openForm('<?= site_url('products/form') ?>')">
+            Tambah Produk
+        </button>
     </div>
-    <br>
+</div>
+<div id="exportProgress" style="display:none;" class="mb-3">
+    <div class="small mb-1">
+        Exporting: <span id="progressText">0%</span>
+    </div>
+    <div style="width:100%; background:#ddd; height:8px; border-radius:4px;">
+        <div id="progressBar"
+            style="width:0%; height:100%; background:#4CAF50; border-radius:4px;">
+        </div>
+    </div>
+</div>
+<br>
 
     <table id="tblProduct" class="table table-bordered table-striped w-100">
         <thead>
@@ -50,6 +83,8 @@
                 <th>Kategori</th>
                 <th>Harga</th>
                 <th>Stok</th>
+                <th width="50px">Created_by</th>
+                <th>Created_at</th>
                 <th width="125px">Aksi</th>
             </tr>
         </thead>
@@ -79,7 +114,9 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-const exportPdfBaseUrl = "<?= site_url('products/printPdf') ?>";
+const printPdfBaseUrl = "<?= site_url('products/printPdf') ?>";
+let currentFromDate = '';
+let currentToDate = '';
 let currentCategory = '';
 let tbl;
 let isExporting = false;
@@ -93,12 +130,14 @@ $(function () {
         language: {
             searchPlaceholder: 'cari nama produk...'
         },
-        order: [[1, 'asc']],
+        order: [],
         ajax: {
             url: "<?= base_url('products/datatable') ?>",
             type: "POST",
             data: function(d) {
-                d.categoryFilter = $('#categoryFilter').val();
+                d.category = currentCategory;
+                d.fromDate = currentFromDate;
+                d.toDate = currentToDate;
                 d.<?= csrf_token() ?> = '<?= csrf_hash() ?>';
             }
         },
@@ -118,6 +157,12 @@ $(function () {
                 name: 'p.stock',
                 searchable: false
             },
+            { data: 'created_by', name: 'u.username',
+            render: function(data) {
+                return data ?? '-';
+            }
+            },
+            { data: 'created_at', name: 'p.created_at'},
             { data: 'aksi', orderable: false, searchable: false }
         ],
         error: function(xhr, error, thrown) {
@@ -240,19 +285,39 @@ function deleteData(id) { //parameter id dapat darimana?
     }
 }
 
-$('#categoryFilter').on('change', function() {
-    currentCategory = $(this).val(); //this itu elemen yg memicu event change
+$('#categoryFilter, #fromDate, #toDate').on('change', function() {
+    currentCategory = $('#categoryFilter').val();
+    currentFromDate = $('#fromDate').val();
+    currentToDate = $('#toDate').val();
 
-    tbl.ajax.reload();
+    let url = printPdfBaseUrl + `?category=${currentCategory}&fromDate=${currentFromDate}&toDate=${currentToDate}`;
+    $('#btnPrintPdf').attr('href', url);
+});
 
-    // update link export pdf
-    let url = exportPdfBaseUrl;
+$('#btnFilter').on('click', function(){
+    currentCategory = $('#categoryFilter').val();
+    currentFromDate = $('#fromDate').val();
+    currentToDate = $('#toDate').val();
 
-    if (currentCategory) {
-        url += '?category=' + currentCategory;
-    }
+    tbl.ajax.reload(null, true);
 
-    $('#btnExportPdf').attr('href', url);
+    let url = printPdfBaseUrl + `?category=${currentCategory}&from=${currentFromDate}&to=${currentToDate}`;
+
+    $('#btnPrintPdf').attr('href', url);
+});
+
+$('#btnReset').on('click', function(){
+    currentCategory = '';
+    currentFromDate = '';
+    currentToDate = '';
+
+    $('#fromDate').val('');
+    $('#toDate').val('');
+    $('#categoryFilter').val(null).trigger('change');
+
+    tbl.ajax.reload(null, true);
+
+    $('#btnPrintPdf').attr('href', printPdfBaseUrl);
 });
 
 $('#btnExportExcel').on('click', function () {
@@ -272,13 +337,19 @@ $('#btnExportExcel').on('click', function () {
     let offset = 0;
     let allData = [];
     let category = currentCategory;
+    let fromDate = currentFromDate;
+    let toDate = currentToDate;
     let totalData = 0;
 
-    $.getJSON('products/exportExcelCount', function (res) {
+    $.getJSON("<?= site_url('products/exportExcelCount') ?>",
+    {
+        category, fromDate, toDate
+    }, 
+    function (res) {
         totalData = res.total;
         
         if (totalData === 0) {
-            finishExport();
+            exportExcel([]);
             return;
         }
         loadChunk();
@@ -289,7 +360,7 @@ $('#btnExportExcel').on('click', function () {
 
         $.getJSON(
             "<?= site_url('products/exportExcelChunk') ?>",
-            { limit, offset, category },
+            { limit, offset, category, fromDate, toDate },
             function (res) {
                 if (res.length > 0) {
                     allData = allData.concat(res);
@@ -324,6 +395,9 @@ $('#btnExportExcel').on('click', function () {
             type: 'POST',
             data: {
                 rows: JSON.stringify(data),
+                category: currentCategory,
+                fromDate: currentFromDate,
+                toDate: currentToDate,
                 <?= csrf_token() ?>: '<?= csrf_hash() ?>'
             },
             xhrFields: {

@@ -6,18 +6,31 @@
     class ProductModel extends Model {
         protected $table = 'products';
         protected $primaryKey = 'id';
-        protected $allowedFields = ['name', 'category_id', 'price', 'stock'];
+        protected $allowedFields = ['name', 'category_id', 'price', 'stock', 'created_at', 'created_by'];
 
         
-        public function datatable($field = null, $value = null){
+        public function datatable($filter = [], $limit = null, $offset = null){
             $builder = $this->db->table('products p')
-                                ->select('p.id as id, p.name as name, p.category_id as category_id, p.price as price, p.stock as stock, c.name as category')
-                                ->join('categories c', 'p.category_id = c.id');
+                                ->select('p.id as id, p.name as name, p.category_id as category_id, p.price as price, p.stock as stock, p.created_at AS created_at, c.name as category, u.username as created_by')
+                                ->join('categories c', 'p.category_id = c.id')
+                                ->join('users u', 'p.created_by = u.id', 'left');
 
-            if ($field !== null && $value !== null) {
-                    $builder->where($field, $value);
-                }
-                return $builder;
+            if (!empty($filter['category'])) {
+                    $builder->where('p.category_id', $filter['category']);
+            }
+
+            if (!empty($filter['fromDate'])) {
+                $builder->where('p.created_at >=', $filter['fromDate'] . ' 00:00:00');
+            }
+
+            if (!empty($filter['toDate'])) {
+                $builder->where('p.created_at <=', $filter['toDate'] . ' 23:59:59');
+            }
+
+            if ($limit !== null && $offset !== null){
+                $builder->limit($limit, $offset);
+            }
+            return $builder;
         }
 
         public function applySearch($builder, $search){
@@ -37,6 +50,7 @@
                 return [
                     "p.name",
                     "c.name",
+                    "u.username"
                 ];
             }
 
@@ -44,28 +58,6 @@
             return $this->select('products.*, categories.name as category_name')
                         ->join('categories', 'categories.id = products.category_id')
                         ->find($id);
-        }
-
-        public function getData($limit, $offset, $category_id = null){
-            $builder = $this->select('products.id, products.name, products.price, products.stock, c.name as category')
-                            ->join('categories c', 'products.category_id = c.id')
-                            ->limit($limit, $offset)
-                            ->orderBy('products.id', 'ASC');
-
-            if ($category_id !== null){
-                $builder->where('products.category_id', $category_id);
-            }
-            return $builder->get()->getResultArray();
-        }
-
-        public function getDataCount($category_id = null){
-            if ($category_id !== null){
-                $builder = $this->where('products.category_id', $category_id)
-                                ->countAllResults();
-            } else {
-                $builder = $this->countAll();
-            }
-            return $builder;
         }
 
         public function getCategoryId($categoryName){
@@ -78,8 +70,7 @@
 
         public function insertBatchData($data)
         {
-            $this->insertBatch($data);
-            return ['success' => count($data), 'failed' => 0];
+            return $this->insertBatch($data);
         }
 
         public function isProductExist($name)
@@ -87,7 +78,6 @@
             return $this->where('LOWER(TRIM(name))', strtolower(trim($name)))
                         ->countAllResults() > 0;
         }
-
 
         public function addData(array $data){
             $this->insert($data);

@@ -26,7 +26,7 @@
             <i class="bi bi-x-circle me-1"></i> Cancel
         </button>
 
-        <button type="button" class="btn btn-primary" id="btnImport" onclick="submitImport()">
+        <button type="button" class="btn btn-outline-primary" id="btnImport" onclick="submitImport()">
             <i class="bi bi-upload me-1"></i> Import
         </button>
     </div>

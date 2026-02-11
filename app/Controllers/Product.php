@@ -14,16 +14,25 @@
     use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
     class Product extends BaseController{
+        
+        protected $db;
+        protected $productModel;
+        protected $categoryModel;
+
+        public function __construct(){
+            $this->db = \Config\Database::connect();
+            $this->productModel = new ProductModel();
+            $this->categoryModel = new CategoryModel();
+        }
+
         public function index(){
             if ($redirect = $this->checkLogin()){
                 return $redirect;
             }
 
-            $categoryModel = new CategoryModel();
-
             return view('product/index', [
                 'title' => 'Data Produk',
-                'categories' => $categoryModel->getForSelect()
+                'categories' => $this->categoryModel->getForSelect()
             ]);
         }
 
@@ -31,24 +40,31 @@
         {
             $this->checkLogin();
 
-            $categoryFilter = $this->request->getPost('categoryFilter'); //ambil filter category dari ajax view
+            $filter = [
+                'category' => $this->request->getPost('category'),
+                'fromDate' => $this->request->getPost('fromDate'),
+                'toDate' => $this->request->getPost('toDate')
+            ];
 
             try {
-                $model = new ProductModel();
-
-                if (!empty($categoryFilter)){
-                    $builder = $model->datatable('p.category_id', $categoryFilter);
-                } else {
-                    $builder = $model->datatable();
-                }
+                $builder = $this->productModel->datatable($filter);
 
                 return DataTable::of($builder)
                     ->setSearchableColumns(false)
-                    ->filter(function ($builder, $request) use ($model) {
+                    ->edit('created_at', function ($row) {
+                        if (empty($row->created_at)) {
+                            return '-';
+                        }
 
-                        $search = $request->search['value'] ?? '';
-
-                        $model->applySearch($builder, $search);
+                        return date('d F Y H:i:s', strtotime($row->created_at));
+                    })
+                    ->filter(function ($builder, $request) {
+                        if (!empty($request->search['value'])) {
+                            $this->productModel->applySearch(
+                                $builder,
+                                $request->search['value']
+                            );
+                        }
                     })
                     ->addNumbering('no', false)
                     ->add('aksi', function ($row) {
@@ -78,9 +94,6 @@
         public function add(){
             $this->checkLogin();
 
-            $db = \Config\Database::connect();
-            $model = new ProductModel();
-
             $name = $this->request->getPost('name');
             $category = $this->request->getPost('category_id');
             $price = $this->request->getPost('price');
@@ -90,7 +103,9 @@
                 'name' => $name,
                 'category_id' => $category,
                 'price' => $price,
-                'stock' => $stock
+                'stock' => $stock,
+                'created_at'  => date('Y-m-d H:i:s'),
+                'created_by'  => session()->get('id')
             ];
 
             if (empty($data['name']) || empty($data['category_id']) || empty($data['price']) || empty($data['stock'])) {
@@ -100,34 +115,31 @@
                 ]);
             }
 
-            if ($model->isProductExist($name)){
+            if ($this->productModel->isProductExist($name)){
                 return $this->response->setJSON([
                     'status' => 'error',
                     'message' => 'nama produk sudah tersedia'
                 ]);
             }
 
-            $db->transBegin();
+            $this->db->transBegin();
 
-            $model->addData($data);
+            $this->productModel->addData($data);
 
-            if ($db->transStatus() === false){
-                $db->transRollback();
+            if ($this->db->transStatus() === false){
+                $this->db->transRollback();
                 return $this->response->setJSON([
                     'status' => 'error',
                     'message' => 'Gagal menambah data' 
                 ]);
             } else {
-                $db->transCommit();
+                $this->db->transCommit();
                 return $this->response->setJSON([ 'status' => 'success' ]);
             }
         }
 
         public function update($id){
             $this->checkLogin();
-
-            $db = \Config\Database::connect();
-            $model = new ProductModel();
 
             $name = $this->request->getPost('name');
             $category = $this->request->getPost('category_id');
@@ -148,46 +160,44 @@
                 ]);
             }
 
-            if ($model->isProductExist($name)){
+            if ($this->productModel->isProductExist($name)){
                 return $this->response->setJSON([
                     'status' => 'error',
                     'message' => 'nama produk sudah tersedia'
                 ]);
             }
 
-            $db->transBegin();
+            $this->db->transBegin();
 
-            $model->updateData($id, $data);
+            $this->productModel->updateData($id, $data);
 
-            if ($db->transStatus() === false){
-                $db->transRollback();
+            if ($this->db->transStatus() === false){
+                $this->db->transRollback();
                 return $this->response->setJSON([ 
                     'status' => 'error',
                     'message' => 'Gagal mengubah data'
                 ]);
             } else {
-                $db->transCommit();
+                $this->db->transCommit();
                 return $this->response->setJSON([ 'status' => 'success' ]);
             }
         }
 
         public function delete($id){
             $this->checkLogin();
-            $db = \Config\Database::connect();
 
-            $model = new ProductModel();
-            $db->transBegin();
+            $this->db->transBegin();
 
-            $model->deleteData($id);
+            $this->productModel->deleteData($id);
 
-            if ($db->transStatus() === false) {
-                $db->transRollback();
+            if ($this->db->transStatus() === false) {
+                $this->db->transRollback();
                 return $this->response->setJSON([ 
                     'status' => 'error',
                     'message' => 'gagal menghapus data'
                 ]);
             } else {
-                $db->transCommit();
+                $this->db->transCommit();
                 return $this->response->setJSON([
                     'status' => 'success',
                     'message' => 'Data Berhasil dihapus' 
@@ -198,8 +208,6 @@
         public function forms($id = '')
         {
             $this->checkLogin();
-
-            $model = new ProductModel();
             
             $form_type = empty($id) ? 'add' : 'edit';
             $row = [];
@@ -207,7 +215,7 @@
 
             if ($id != '') {
                 $productid = $id;
-                $row = $model->getOneWithCategory($id);
+                $row = $this->productModel->getOneWithCategory($id);
 
                 if (!$row) {
                     return $this->response->setJSON([
@@ -233,13 +241,10 @@
         public function categoryList(){
             $this->checkLogin();
 
-            $search = $this->request->getPost('search');
-            $categoryModel = new CategoryModel();
-
             if (!empty($search)){
-                $items = $categoryModel->findData($search);
+                $items = $this->categoryModel->findData($search);
             } else {
-                $items = $categoryModel->findData();
+                $items = $this->categoryModel->findData();
             }
 
             $result = array_map(fn($c) => [
@@ -254,15 +259,15 @@
             if ($redirect = $this->checkLogin()){
                 return $redirect;
             }
-            $categoryFilter = $this->request->getGet('category'); //ambil filter kategory(dari url) kalo ada
+            $filter = [
+                'category' => $this->request->getGet('category'),
+                'fromDate' => $this->request->getGet('fromDate'),
+                'toDate'   => $this->request->getGet('toDate'),
+            ];
             
-            $model = new ProductModel();
-            $categoryModel = new CategoryModel();
-            if (!empty($categoryFilter)){
-                $products = $model->datatable('p.category_id', $categoryFilter)->get()->getResultArray();
-            } else {
-                $products = $model->datatable()->get()->getResultArray();
-            }
+            $products = $this->productModel->datatable($filter)
+                                            ->get()
+                                            ->getResultArray();
 
             require_once APPPATH.'ThirdParty/fpdf/fpdf.php';
 
@@ -312,7 +317,7 @@
             $pdf->Ln(2);
 
             if (!empty($categoryFilter)){
-                $categoryName = $categoryModel->getOneCategory($categoryFilter);
+                $categoryName = $this->categoryModel->getOneCategory($categoryFilter);
                 $category = $categoryName['name'];
             } else {
                 $category = "Semua Kategori";
@@ -351,21 +356,32 @@
 
             $pdf->SetFont('Arial', 'B', 10);
             $pdf->Cell(10,8,'No',1, 0,'C');
-            $pdf->Cell(60,8,'Nama Produk',1, 0, 'C');
-            $pdf->Cell(60,8,'Kategori',1, 0, 'C');
-            $pdf->Cell(38,8,'Harga',1, 0, 'C');
+            $pdf->Cell(30,8,'Nama Produk',1, 0, 'C');
+            $pdf->Cell(30,8,'Kategori',1, 0, 'C');
+            $pdf->Cell(30,8,'Harga',1, 0, 'C');
             $pdf->Cell(20,8,'Stok',1, 0, 'C');
+            $pdf->Cell(23,8,'created_by',1, 0, 'C');
+            $pdf->Cell(45,8,'created_at',1, 0, 'C');
             $pdf->Ln();
 
             $pdf->SetFont('Arial', '', 10);
             $no = 1;
-            foreach ($products as $p) {
-                $pdf->Cell(10,8,$no++,1, 0, 'C');
-                $pdf->Cell(60,8,$p['name'],1, 0, 'C');
-                $pdf->Cell(60,8,$p['category'],1, 0, 'C');
-                $pdf->Cell(38,8,number_format($p['price'],0, ',', '.'),1, 0, 'C');
-                $pdf->Cell(20,8,$p['stock'],1, 0, 'C');
-                $pdf->Ln();
+            if(!empty($products)){
+                foreach ($products as $p) {
+                    $pdf->Cell(10,8,$no++,1, 0, 'C');
+                    $pdf->Cell(30,8,$p['name'],1, 0, 'C');
+                    $pdf->Cell(30,8,$p['category'],1, 0, 'C');
+                    $pdf->Cell(30,8,number_format($p['price'],0, ',', '.'),1, 0, 'C');
+                    $pdf->Cell(20,8,$p['stock'],1, 0, 'C');
+                    $pdf->Cell(23,8,$p['created_by'],1, 0, 'C');
+    
+                    $createdAt = date('d F Y H:i:s', strtotime($p['created_at']));
+                    $pdf->Cell(45,8,$createdAt,1, 0, 'C');
+    
+                    $pdf->Ln();
+                }
+            } else {
+                $pdf->Cell(188, 10, 'Tidak ada data', 1, 1, 'C');
             }
             $pdf->Ln(5);
 
@@ -391,7 +407,17 @@
                 return $redirect;
             }
 
-            $rows = json_decode($this->request->getPost('rows'), true);
+            $filter = [
+                'category' => $this->request->getGet('category'),
+                'fromDate' => $this->request->getGet('fromDate'),
+                'toDate'   => $this->request->getGet('toDate'),
+            ];
+            $rowJson = $this->request->getPost('rows');
+            if ($rowJson){
+                $rows = json_decode($rowJson, true);
+            } else {
+                $rows = $this->productModel->datatable($filter)->get()->getResultArray();
+            }
 
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
@@ -419,7 +445,7 @@
 
             /* ===== JUDUL ===== */
             $sheet->setCellValue('A1', 'DATA PRODUK');
-            $sheet->mergeCells('A1:E1');
+            $sheet->mergeCells('A1:G1');
             $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
             $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
@@ -427,26 +453,36 @@
             $sheet->setCellValue('A3', 'No');
             $sheet->setCellValue('B3', 'Nama Produk');
             $sheet->setCellValue('C3', 'Kategori');
-            $sheet->setCellValue('D3', 'Price');
+            $sheet->setCellValue('D3', 'Harga');
             $sheet->setCellValue('E3', 'Stok');
-            $sheet->getStyle('A3:E3')->applyFromArray($headerStyle);
+            $sheet->setCellValue('G3', 'created_by');
+            $sheet->setCellValue('F3', 'created_at');
+            $sheet->getStyle('A3:G3')->applyFromArray($headerStyle);
 
             /* ===== DATA ===== */
             $rowExcel = 4;
             $no = 1;
 
-            foreach ($rows as $row) {
-                $sheet->setCellValue("A$rowExcel", $no++);
-                $sheet->setCellValue("B$rowExcel", $row['name']);
-                $sheet->setCellValue("C$rowExcel", $row['category']);
-                $sheet->setCellValue("D$rowExcel", $row['price']);
-                $sheet->setCellValue("E$rowExcel", $row['stock']);
-
-                $sheet->getStyle("D$rowExcel")->getNumberFormat()
-                    ->setFormatCode('"Rp" #,##0');
-                $sheet->getStyle("A$rowExcel:E$rowExcel")->applyFromArray($dataStyle);
-
-                $rowExcel++;
+            if (!empty($rows)){
+                foreach ($rows as $row) {
+                    $sheet->setCellValue("A$rowExcel", $no++);
+                    $sheet->setCellValue("B$rowExcel", $row['name']);
+                    $sheet->setCellValue("C$rowExcel", $row['category']);
+                    $sheet->setCellValue("D$rowExcel", $row['price']);
+                    $sheet->setCellValue("E$rowExcel", $row['stock']);
+                    $sheet->setCellValue("G$rowExcel", $row['created_by']);
+                    $sheet->setCellValue("F$rowExcel", $row['created_at']);
+    
+                    $sheet->getStyle("D$rowExcel")->getNumberFormat()
+                        ->setFormatCode('"Rp" #,##0');
+                    $sheet->getStyle("A$rowExcel:G$rowExcel")->applyFromArray($dataStyle);
+    
+                    $rowExcel++;
+                }
+            } else {
+                $sheet->setCellValue("A4", "Tidak ada data");
+                $sheet->mergeCells("A4:G4");
+                $sheet->getStyle("A4")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             }
 
             $sheet->getColumnDimension('A')->setWidth(5);
@@ -454,14 +490,21 @@
             $sheet->getColumnDimension('C')->setWidth(20);
             $sheet->getColumnDimension('D')->setWidth(20);
             $sheet->getColumnDimension('E')->setWidth(10);
+            $sheet->getColumnDimension('F')->setWidth(20);
+            $sheet->getColumnDimension('G')->setWidth(20);
 
             $writer = new Xlsx($spreadsheet);
             $filename = 'Data_Produk.xlsx';
 
+            ob_start();
+            $writer->save('php://output');
+            $excelOutput = ob_get_contents();
+            ob_end_clean();
+
             return $this->response
                 ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
                 ->setHeader('Content-Disposition', 'attachment;filename="'.$filename.'"')
-                ->setBody($writer->save('php://output'));
+                ->setBody($excelOutput);
         }
 
         public function exportExcelChunk(){
@@ -471,14 +514,15 @@
 
             $limit = (int) $this->request->getGet('limit');
             $offset = (int) $this->request->getGet('offset');
-            $category_id = $this->request->getGet('category');
+            $filter = [
+                'category' => $this->request->getGet('category'),
+                'fromDate' => $this->request->getGet('fromDate'),
+                'toDate'   => $this->request->getGet('toDate'),
+            ];
 
-            $model = new ProductModel();
-            if(!empty($category_id)){
-                $rows = $model->getData($limit, $offset, $category_id);
-            } else {
-                $rows = $model->getData($limit, $offset);
-            }
+            $rows = $this->productModel->datatable($filter, $limit, $offset)
+                                        ->get()
+                                        ->getResultArray();
 
             return $this->response->setJSON($rows);
         }
@@ -488,14 +532,14 @@
                 return $redirect;
             }
 
-            $category_id = $this->request->getGet('category');
-            $model = new ProductModel();
+            $filter = [
+                'category' => $this->request->getGet('category'),
+                'fromDate' => $this->request->getGet('fromDate'),
+                'toDate'   => $this->request->getGet('toDate'),
+            ];
 
-            if (!empty($category_id)){
-                $total = $model->getDataCount($category_id);
-            } else {
-                $total = $model->getDataCount();
-            }
+            $total = $this->productModel->datatable($filter)
+                                        ->countAllResults();
 
             return $this->response->setJSON([
                 'total' => $total
@@ -542,9 +586,6 @@
         }
 
         public function importChunk(){
-            $db = \Config\Database::connect();
-
-
             $file   = $this->request->getGet('file');
             $offset = (int) $this->request->getGet('offset');
             $limit  = (int) $this->request->getGet('limit');
@@ -566,7 +607,6 @@
 
             $chunk = array_slice($rows, $offset, $limit);
 
-            $model = new ProductModel();
             $insertData = [];
             $success = 0;
             $failed = 0;
@@ -578,7 +618,7 @@
                 $price    = preg_replace('/[^0-9]/', '', $row[3]);
                 $stock    = $row[4];
 
-                $category = $model->getCategoryId($categoryName);
+                $category = $this->productModel->getCategoryId($categoryName);
 
                 if (!$category) {
                     $failed++;
@@ -590,9 +630,11 @@
                     'category_id' => $category['id'],
                     'price'       => (float) $price,
                     'stock'       => (int) $stock,
+                    'created_at'  => date('Y-m-d H:i:s'),
+                    'created_by'  => session()->get('id')
                 ];
                     
-                if($model->isProductExist($name)){
+                if($this->productModel->isProductExist($name)){
                     $failed++;
                     continue;
                 }
@@ -605,20 +647,20 @@
                 $insertData[] = $data;
             }
 
-            $db->transBegin();
+            $this->db->transBegin();
 
             if (!empty($insertData)) {
-                $model->insertBatchData($insertData);
+                $this->productModel->insertBatchData($insertData);
             }
 
-            if ($db->transStatus() === false){
-                $db->transRollback();
+            if ($this->db->transStatus() === false){
+                $this->db->transRollback();
                 return $this->response->setJSON([
                     'status' => 'error',
                     'message' => 'gagal import data',
                 ]);
             } else {
-                $db->transCommit();
+                $this->db->transCommit();
                 $success = count($insertData);
                 return $this->response->setJSON([
                     'status'  => 'success',
