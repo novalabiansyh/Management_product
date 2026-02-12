@@ -54,7 +54,7 @@ function submitProduct() {
                 $('#modalForm').modal('hide');
                 $('#tblProduct').DataTable().ajax.reload(null, false);
             } else {
-                alert(res.message);
+                Swal.fire('Gagal', res.message, 'error');
             }
         }
     });

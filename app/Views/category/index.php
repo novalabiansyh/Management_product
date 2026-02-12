@@ -173,6 +173,5 @@ function deleteData(id){
         });
     }
 }
-$('#btnPrintPdf').attr('href', url);
 </script>
 <?= $this->endSection(); ?>

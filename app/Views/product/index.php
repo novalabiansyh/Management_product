@@ -98,7 +98,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h6 class="modal-title">Form Produk</h6>
+                <h6 class="modal-title"></h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="modalBody"></div>
@@ -111,7 +111,7 @@
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Upload File</h5>
+        <h5 class="modal-title" id="uploadModalTitle"></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -131,7 +131,7 @@
               <th>File Directory</th>
               <th>Created At</th>
               <th>Created By</th>
-              <th>Aksi</th>
+              <th style="width: 120px;">Aksi</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -149,6 +149,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 const printPdfBaseUrl = "<?= site_url('products/printPdf') ?>";
 let currentFromDate = '';
@@ -159,6 +160,7 @@ let currentProductId = null;
 let isExporting = false;
 let exportBtnText = $('#btnExportExcel').text();
 let exportTimeout = null;
+let isUploadCanceled = false; 
 $(function () {
     initCategorySelect2Filter();
     tbl = $('#tblProduct').DataTable({
@@ -202,6 +204,12 @@ $(function () {
             { data: 'created_at', name: 'p.created_at'},
             { data: 'aksi', orderable: false, searchable: false }
         ],
+        drawCallback: function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+        },
         error: function(xhr, error, thrown) {
             console.error('DataTables error:', xhr.responseText);
             alert('Terjadi kesalahan saat memuat data. Silakan refresh halaman.');
@@ -245,7 +253,7 @@ function openForm(url) {
                 }
 
                 $('#modalBody').html(data.view);
-                $('#modalForm .modal-title').text('Form Produk');
+                $('#modalForm .modal-title').text(data.title);
                 $('#modalForm')
                 .off('shown.bs.modal')
                 .on('shown.bs.modal', function () {
@@ -287,39 +295,42 @@ function openImportForm(url){
     });
 }
 
-function deleteData(id) { //parameter id dapat darimana?
-    if (confirm('Apakah Anda yakin ingin menghapus produk ini?')) {
-        $.ajax({
-            url: '<?= site_url('products/delete/') ?>' + id,
-            type: 'POST',
-            data: {
-                <?= csrf_token() ?>: '<?= csrf_hash() ?>'
-            },
-            success: function(res) {
-                try {
-                    let data;
-                    if (typeof res === 'string') {
-                        data = JSON.parse(res);
-                    } else {
-                        data = res;
-                    }
+function deleteData(id) {
+    Swal.fire({
+        title: 'Apakah Anda yakin?',
+        text: "Data produk ini akan dihapus permanen!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.showLoading();
+
+            $.ajax({
+                url: '<?= site_url('products/delete/') ?>' + id,
+                type: 'POST',
+                data: {
+                    "<?= csrf_token() ?>": "<?= csrf_hash() ?>"
+                },
+                success: function(res) {
+                    let data = (typeof res === 'string') ? JSON.parse(res) : res;
+                    
                     if (data.status === 'success') {
-                        showALert(data.message, 'success');
-                        tbl.ajax.reload();
+                        Swal.fire('Terhapus!', data.message, 'success');
+                        $('#tblProduct').DataTable().ajax.reload(null, false);
                     } else {
-                        showALert(data.message, 'error');
+                        Swal.fire('Gagal!', data.message, 'error');
                     }
-                } catch (e) {
-                    console.error('Error parsing response:', e);
-                    alert('Terjadi kesalahan saat menghapus.');
+                },
+                error: function(xhr, status, error) {
+                    Swal.fire('Error!', 'Terjadi kesalahan sistem: ' + error, 'error');
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('AJAX error:', xhr.responseText);
-                alert('Gagal menghapus produk. Error: ' + error);
-            }
-        });
-    }
+            });
+        }
+    });
 }
 
 $('#categoryFilter, #fromDate, #toDate').on('change', function() {
@@ -527,10 +538,11 @@ function initCategorySelect2Filter(){
     });
 }
 
-function uploadForm(productId) {
+function uploadForm(productId, productName) {
     currentProductId = productId;
 
     $('#uploadModal').modal('show');
+    $('#uploadModalTitle').text('Upload File - ' + productName);
     $('#datatableFiles').DataTable().ajax.reload();
 }
 
@@ -576,36 +588,63 @@ function uploadForm(productId) {
                 let modalEl = $('#uploadModal');
                 let btnUpload = $("#btnUpload");
                 let btnClose = modalEl.find('.btn-close');
+                let bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
                 dz.on("sending", function (file, xhr, formData) {
+                    isUploadCanceled = false;
                     formData.append("refid", currentProductId);
                     formData.append("<?= csrf_token() ?>", "<?= csrf_hash() ?>");
 
-                    modalEl.attr('data-bs-backdrop', 'static');
-                    modalEl.attr('data-bs-keyboard', 'false');
+                    bsModal._config.backdrop = 'static';
+                    bsModal._config.keyboard = false;
 
                     btnUpload.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Uploading...');
                     btnClose.hide();
                 });
 
+                dz.on("canceled", function(file) {
+                    isUploadCanceled = true;
+                    $.post("<?= base_url('files/cleanup') ?>", {
+                        dzuuid: file.upload.uuid,
+                        "<?= csrf_token() ?>": "<?= csrf_hash() ?>"
+                    });
+
+                    btnUpload.prop('disabled', false).text('Upload');
+                    btnClose.show();
+                    
+                    Swal.fire('Dibatalkan', 'Upload file telah dihentikan.', 'info');
+                });
+
                 dz.on("success", function (file, response) {
                     $('#datatableFiles').DataTable().ajax.reload(null, false);
+
+                    if (dz.getQueuedFiles().length > 0){
+                        dz.processQueue();
+                    }
                 });
 
                 dz.on("queuecomplete", function () {
-                    modalEl.attr('data-bs-backdrop', 'true');
-                    modalEl.attr('data-bs-keyboard', 'true');
+                    bsModal._config.backdrop = true;
+                    bsModal._config.keyboard = true;
                     
                     btnUpload.prop('disabled', false).text('Upload');
                     btnClose.show();
 
                     dz.removeAllFiles(true);
-
-                    console.log("Semua file selesai diupload.");
+                    if (!isUploadCanceled){
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Upload Selesai',
+                            text: 'Semua file telah diupload.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
                 });
 
                 dz.on("error", function(file, message) {
-                    alert("Error: " + message);
+                    isUploadCanceled = true;
+                    Swal.fire('Gagal', 'Terjadi kesalahan: ' + message, 'error');
                     btnUpload.prop('disabled', false).text('Upload');
                     btnClose.show();
                 });
@@ -614,31 +653,42 @@ function uploadForm(productId) {
                     if (dz.getQueuedFiles().length > 0) {
                         dz.processQueue();
                     } else {
-                        alert("Silakan pilih file terlebih dahulu.");
+                        Swal.fire('Info', 'Pilih File terlebih dahulu!', 'info');
                     }
                 });
             }
         });
   
     function deleteFile(fileId) {
-        if (confirm("Yakin mau hapus file ini?")) {
+    Swal.fire({
+        title: 'Apakah Anda yakin?',
+        text: "File yang dihapus tidak bisa dikembalikan!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
             $.ajax({
                 url: "<?= base_url('files/delete') ?>/" + fileId,
                 type: "POST",
+                data: { "<?= csrf_token() ?>": "<?= csrf_hash() ?>" }, // Tambah CSRF
                 success: function(res) {
                     if (res.status === 'success') {
-                        alert(res.message);
-                        $('#datatableFiles').DataTable().ajax.reload();
+                        Swal.fire('Terhapus!', res.message, 'success');
+                        $('#datatableFiles').DataTable().ajax.reload(null, false);
                     } else {
-                        alert(res.message);
+                        Swal.fire('Gagal', res.message, 'error');
                     }
                 },
                 error: function() {
-                    alert("Terjadi kesalahan saat menghapus file.");
+                    Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
                 }
             });
         }
-    }
-
+    });
+}
 </script>
 <?= $this->endSection() ?>

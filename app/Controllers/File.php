@@ -45,9 +45,9 @@ class File extends BaseController
                 ->addNumbering('no', false)
                 ->add('aksi', function ($row) {
                     return '
-                        <a href="' . base_url($row->filedirectory . '/' . $row->filename) . '" target="_blank" class="btn btn-info btn-sm">Lihat</a>
-                        <a href="' . site_url('files/download/' . $row->fileid) . '" class="btn btn-success btn-sm">Download</a>
-                        <button class="btn btn-danger btn-sm" onclick="deleteFile(' . $row->fileid . ')">Hapus</button>
+                        <a href="' . base_url($row->filedirectory) . '" target="_blank" class="btn btn-info btn-sm" data-bs-toggle="tooltip" title="Lihat File"><i class="fas fa-eye"></i></a>
+                        <a href="' . site_url('files/download/' . $row->fileid) . '" class="btn btn-success btn-sm" data-bs-toggle="tooltip" title="Download File"><i class="fas fa-download"></i></a>
+                        <button class="btn btn-danger btn-sm" onclick="deleteFile(' . $row->fileid . ')" data-bs-toggle="tooltip" title="Hapus File"><i class="fas fa-trash"></i></button>
                     ';
                 })
                 ->toJson(true);
@@ -86,15 +86,17 @@ class File extends BaseController
         $tempDir  = WRITEPATH . 'uploads/temp/';
         if (!is_dir($tempDir)) mkdir($tempDir, 0777, true);
         
-        $tempFileName = $uuid . '_' . $file->getClientName();
+        $tempFileName = "upload_" . $uuid . ".part";
         $tempFilePath = $tempDir . $tempFileName;
 
         $content = file_get_contents($file->getTempName());
-        file_put_contents($tempFilePath, $content, FILE_APPEND);
+        file_put_contents($tempFilePath, $content, FILE_APPEND | LOCK_EX);
 
         if ($chunkIndex + 1 == $totalChunks) {
             
-            $newName = $file->getRandomName();
+            $ext = $file->getClientExtension();
+            $randomName = $file->getRandomName();
+            $newName = pathinfo($randomName, PATHINFO_FILENAME) . '.' . $ext;
             $subdir  = 'uploads/' . date('Y/m/d');
             $finalPath = FCPATH . $subdir;
 
@@ -190,5 +192,16 @@ class File extends BaseController
                 'message' => 'File Berhasil dihapus'
             ]);
         }
+    }
+
+    public function cleanup(){
+        $uuid = $this->request->getPost('dzuuid');
+        $tempFilePath = WRITEPATH . 'uploads/temp/upload_' . $uuid . '.part';
+
+        if (file_exists($tempFilePath)) {
+            unlink($tempFilePath); // Hapus potongan file yang tanggung
+        }
+
+        return $this->response->setJSON(['status' => 'cleaned']);
     }
 }

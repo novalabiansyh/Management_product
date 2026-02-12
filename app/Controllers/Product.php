@@ -70,11 +70,14 @@
                     ->add('aksi', function ($row) {
                         return '
                             <button class="btn btn-warning btn-sm"
-                                onclick="editForm(\'' . $row->id . '\')">Edit</button>
+                                onclick="editForm(\'' . $row->id . '\')" data-bs-toggle="tooltip" title="Edit Data">
+                                <i class="fas fa-edit"></i></button>
                             <button class="btn btn-danger btn-sm"
-                                onclick="deleteData(\'' . $row->id . '\')">Hapus</button>
+                                onclick="deleteData(\'' . $row->id . '\')" data-bs-toggle="tooltip" title="Hapus Data">
+                                <i class="fas fa-trash"></i></button>
                             <button class="btn btn-primary btn-sm"
-                                onclick="uploadForm(\'' . $row->id . '\')">Upload</button>
+                                onclick="uploadForm(\'' . $row->id . '\', \'' . $row->name . '\')" data-bs-toggle="tooltip" title="Upload File">
+                                <i class="fas fa-upload"></i></button>
                         ';
                     })
                     ->toJson(true);
@@ -225,16 +228,25 @@
                 }
             }
 
-            return view('product/form', [
-                'title'     => ($form_type == 'add' ? 'Tambah' : 'Edit') . ' Produk',
+            $view = view('product/form', [
                 'form_type' => $form_type,
-                'row'       => $row,
-                'productid' => $productid,
+                'row' => $row,
+                'productid' => $productid
+            ]);
+
+            return $this->response->setJSON([
+                'title' => ($form_type == 'add' ? 'Tambah ' : 'Edit '). 'Product',
+                'view' => $view,
+                'row' => $row,
+                'form_type' => $form_type,
+                'csrfToken' => csrf_hash()
             ]);
         }
 
         public function categoryList(){
             $this->checkLogin();
+
+            $search = $this->request->getPost('search');
 
             if (!empty($search)){
                 $items = $this->categoryModel->findData($search);

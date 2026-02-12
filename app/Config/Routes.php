@@ -35,6 +35,7 @@ $routes->group('files', ['namespace' => 'App\Controllers'], function($routes) {
     $routes->post('upload', 'File::upload');
     $routes->get('download/(:num)', 'File::download/$1');
     $routes->post('delete/(:num)', 'File::delete/$1');
+    $routes->post('cleanup', 'File::cleanup');
 });
 
 
