@@ -15,7 +15,7 @@ $routes->group('products', ['namespace' => 'App\Controllers'], function($routes)
     $routes->get('', 'Product::index');
     $routes->post('datatable', 'Product::datatable');
     $routes->get('form', 'Product::forms');
-    $routes->get('form/(:any)', 'Product::forms/$1');
+    $routes->get('edit/(:any)', 'Product::edit/$1');
     $routes->post('add', 'Product::add');
     $routes->post('update/(:any)', 'Product::update/$1');
     $routes->post('delete/(:any)', 'Product::delete/$1');

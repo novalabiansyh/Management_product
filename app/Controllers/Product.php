@@ -210,36 +210,45 @@
             }
         }
 
-        public function forms($id = '')
+        public function forms()
         {
             if ($redirect = $this->checkLogin()) {
                 return $redirect;
             }
 
-            $form_type = empty($id) ? 'add' : 'edit';
             $row = [];
-            $productid = $id;
-
-            if ($id != '') {
-                $row = $this->productModel->getOneWithCategory($id);
-
-                if (!$row) {
-                    return redirect()->to(site_url('products'))->with('error', 'Data produk tidak ditemukan');
-                }
-            }
+            $productid = '';
 
             $view = view('product/form', [
-                'form_type' => $form_type,
+                'form_type' => 'add',
                 'row' => $row,
                 'productid' => $productid
             ]);
 
             return $this->response->setJSON([
-                'title' => ($form_type == 'add' ? 'Tambah ' : 'Edit '). 'Product',
+                'title' => 'Tambah Product',
                 'view' => $view,
                 'row' => $row,
-                'form_type' => $form_type,
+                'form_type' => 'add',
                 'csrfToken' => csrf_hash()
+            ]);
+        }
+
+        public function edit($id){
+            if ($redirect = $this->checkLogin()){
+                return $redirect;
+            }
+
+            $row = $this->productModel->getOneWithCategory($id);
+            if (!$row){
+                return redirect()->to(site_url('products'))->with('error', 'Data produk tidak ditemukan');
+            }
+
+            return view('product/edit', [
+                'title' => 'Edit Product',
+                'form_type' => 'edit',
+                'row' => $row,
+                'productid' => $id
             ]);
         }
 

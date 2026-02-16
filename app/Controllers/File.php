@@ -145,7 +145,7 @@ class File extends BaseController
             ]);
         }
 
-        $path = FCPATH . $file['filedirectory'] . '/' . $file['filename'];
+        $path = FCPATH . $file['filedirectory'];
 
         if (!file_exists($path)) {
             return $this->response->setJSON([

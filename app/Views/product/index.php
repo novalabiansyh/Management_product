@@ -273,7 +273,7 @@ function openForm(url) {
 }
 
 function editForm(id) {
-    openForm('<?= site_url('products/form/') ?>' + id);
+    window.location.href = '<?= site_url('products/edit/') ?>' + id;
 }
 
 function openImportForm(url){
@@ -674,7 +674,7 @@ function uploadForm(productId, productName) {
             $.ajax({
                 url: "<?= base_url('files/delete') ?>/" + fileId,
                 type: "POST",
-                data: { "<?= csrf_token() ?>": "<?= csrf_hash() ?>" }, // Tambah CSRF
+                data: { "<?= csrf_token() ?>": "<?= csrf_hash() ?>" },
                 success: function(res) {
                     if (res.status === 'success') {
                         Swal.fire('Terhapus!', res.message, 'success');
